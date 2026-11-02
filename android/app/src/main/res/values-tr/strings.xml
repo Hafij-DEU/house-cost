@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="saved_downloads">Downloads/HouseCost klasörüne kaydedildi</string>
+    <string name="no_app_open">Bu dosyayı açabilecek uygulama yok</string>
+    <string name="no_browser">Yüklü tarayıcı yok</string>
+</resources>

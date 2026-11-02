@@ -1,0 +1,10 @@
+{
+  "name": "house-cost",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Share house expenses: who paid, who owes, month by month. Offline first, optional GitHub sync.",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "serve": "python3 -m http.server 8771 --bind 127.0.0.1 --directory web"
+  }
+}

@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#4F46E5">
+  <title>House Cost</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="top-row">
+      <h1>House Cost</h1>
+      <button id="syncBtn" class="sync-btn" title="Sync with GitHub" data-i18n-title="sync.title"><span class="sync-ic">⟳</span><span id="syncBadge" class="badge hidden"></span></button>
+    </div>
+    <div class="month-nav" id="monthNav">
+      <button id="mPrev" aria-label="Previous month" data-i18n-aria="nav.prev">‹</button>
+      <span id="mLabel"></span>
+      <button id="mNext" aria-label="Next month" data-i18n-aria="nav.next">›</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Home: the month at a glance -->
+    <section id="tab-home" class="tab active">
+      <div id="setupHint" class="card hint hidden"></div>
+      <div class="hero">
+        <div>
+          <span class="hero-label" data-i18n="hero.spent">Spent this month</span>
+          <b id="monthTotal" class="hero-total"></b>
+          <span id="monthSub" class="hero-sub"></span>
+        </div>
+        <div class="hero-side">
+          <span class="hero-label" data-i18n="hero.myShare">My share</span>
+          <b id="myMonthShare"></b>
+        </div>
+      </div>
+      <div class="month-actions">
+        <button type="button" id="xExcel"><span>⬇</span> Excel</button>
+        <button type="button" id="xShare"><span>↗</span> <i data-i18n="x.share">Share month</i></button>
+      </div>
+      <div id="catBar" class="cat-bar"></div>
+      <div id="catLegend" class="cat-legend"></div>
+
+      <div class="card cal-card">
+        <div class="cal-head" id="calHead"></div>
+        <div class="cal-grid" id="calGrid"></div>
+      </div>
+
+      <div class="list-head">
+        <h2 id="listTitle" data-i18n="list.all">All entries</h2>
+        <button id="dayClear" class="link hidden" data-i18n="list.wholeMonth">Show whole month</button>
+      </div>
+      <div id="expenseList"></div>
+    </section>
+
+    <!-- Balances: who owes whom -->
+    <section id="tab-balances" class="tab">
+      <div id="balHint" class="card hint hidden"></div>
+      <div id="myTotals" class="totals"></div>
+      <h2 id="iOweTitle" data-i18n="bal.iOwe">I still owe</h2>
+      <div id="iOwe"></div>
+      <h2 id="oweMeTitle" data-i18n="bal.oweMe">Still owed to me</h2>
+      <div id="oweMe"></div>
+      <h2 data-i18n="bal.everyone">Everyone (all time)</h2>
+      <div id="everyone" class="card table-card"></div>
+      <h2 data-i18n="bal.allDebts">All open debts</h2>
+      <div id="allDebts"></div>
+    </section>
+
+    <!-- People, sync, settings -->
+    <section id="tab-people" class="tab">
+      <h2 data-i18n="ppl.title">People in the house</h2>
+      <form id="personForm" class="card row" autocomplete="off">
+        <input id="pName" class="grow" maxlength="30" placeholder="Name" data-i18n-ph="ppl.name">
+        <button class="primary" type="submit" data-i18n="ppl.add">Add</button>
+      </form>
+      <p id="pError" class="error"></p>
+      <div id="peopleList"></div>
+
+      <h2 data-i18n="gh.title">Shared online (GitHub)</h2>
+      <div class="card form">
+        <p class="muted" data-i18n-html="gh.intro">The app always works offline. When you sync, it merges your changes with the shared file in a <b>private</b> GitHub repo. Every sync is a commit, so you get a dated history of every change.</p>
+        <label><span data-i18n="gh.repo">Data repo (owner/name)</span>
+          <input id="ghRepo" placeholder="Hafij-DEU/house-cost-data" autocapitalize="off" spellcheck="false">
+        </label>
+        <label><span data-i18n="gh.token">Access token (kept only on this device)</span>
+          <input id="ghToken" type="password" placeholder="github_pat_…" autocomplete="off" spellcheck="false">
+        </label>
+        <details class="muted"><summary data-i18n="gh.howTo">How to get a token</summary>
+          <span data-i18n-html="gh.howToBody"></span>
+        </details>
+        <label class="check"><input type="checkbox" id="ghAuto"> <span class="grow" data-i18n="gh.auto">Auto sync when online (on open and after each change)</span></label>
+        <div class="row wrap">
+          <button type="button" class="primary" id="ghSave">Connect</button>
+          <button type="button" id="ghSyncNow" data-i18n="gh.syncNow">Sync now</button>
+          <button type="button" id="ghForget" data-i18n="gh.disconnect">Disconnect</button>
+        </div>
+        <p id="syncStatus"></p>
+        <a id="ghHistory" class="link-out hidden" target="_blank" rel="noopener" data-i18n="gh.history">See change history on GitHub ↗</a>
+      </div>
+      <div class="card form">
+        <p class="muted" data-i18n-html="file.intro">No GitHub? Send your file to a housemate (MeshDrop, chat…); they tap <b>Import &amp; merge</b>. Nothing is lost; the newer change wins.</p>
+        <div class="row wrap">
+          <button type="button" id="fileSend" data-i18n="file.send">Send / save file</button>
+          <button type="button" id="fileImport" data-i18n="file.import">Import &amp; merge</button>
+          <input type="file" id="fileInput" accept=".json,application/json" class="hidden">
+        </div>
+        <p id="fileMsg" class="muted"></p>
+      </div>
+
+      <h2 data-i18n="set.title">Settings</h2>
+      <div class="card form">
+        <label><span data-i18n="set.lang">Language</span>
+          <select id="sLang">
+            <option value="auto" data-i18n="set.langAuto">Automatic (device language)</option>
+            <option value="en">English</option>
+            <option value="tr">Türkçe</option>
+          </select>
+        </label>
+        <label><span data-i18n="set.currency">Currency symbol</span>
+          <input id="sCurrency" maxlength="4">
+        </label>
+      </div>
+      <div class="card form">
+        <p class="muted" data-i18n="set.backupIntro">Backup text: copy it somewhere safe; paste it back to restore.</p>
+        <textarea id="sBackup" rows="3" placeholder="Paste a backup here to restore" data-i18n-ph="set.backupPh"></textarea>
+        <div class="row">
+          <button type="button" id="sCopy" data-i18n="set.copy">Copy backup</button>
+          <button type="button" id="sRestore" data-i18n="set.restore">Restore</button>
+        </div>
+        <p id="sMsg" class="muted"></p>
+      </div>
+      <button type="button" class="danger" id="sReset" data-i18n="set.reset">Delete all data</button>
+    </section>
+  </main>
+
+  <!-- Add / edit sheet -->
+  <div id="sheet" class="sheet" aria-hidden="true">
+    <div class="sheet-panel">
+      <div class="sheet-head">
+        <button type="button" class="icon-btn" id="fClose" aria-label="Close" data-i18n-aria="sheet.close">✕</button>
+        <h2 id="sheetTitle" data-i18n="sheet.new">New expense</h2>
+        <span class="icon-btn-space"></span>
+      </div>
+      <form id="expenseForm" class="form" autocomplete="off">
+        <input id="fAmount" class="amount-input" required inputmode="decimal" placeholder="0.00" aria-label="Amount" data-i18n-aria="f.amount">
+        <div id="fCats" class="cat-pick"></div>
+        <label><span data-i18n="f.title">What was bought</span>
+          <input id="fTitle" required maxlength="60" placeholder="Gas cylinder, rice, internet bill…" data-i18n-ph="f.titlePh">
+        </label>
+        <div class="row">
+          <label class="grow"><span data-i18n="f.payer">Who paid</span>
+            <select id="fPayer" required></select>
+          </label>
+          <label class="grow"><span data-i18n="f.date">Date</span>
+            <input id="fDate" type="date" required>
+          </label>
+        </div>
+        <label><span data-i18n="f.note">Details / comment (optional)</span>
+          <textarea id="fNote" rows="2" maxlength="500" placeholder="5 kg rice, 2 L oil… or a note for the others" data-i18n-ph="f.notePh"></textarea>
+        </label>
+        <div class="attach">
+          <div class="attach-head"><span data-i18n="f.files">Receipts, photos, PDFs</span>
+            <button type="button" class="link" id="fAddFile" data-i18n="f.addFile">＋ Add file</button></div>
+          <div id="fFiles" class="file-list"></div>
+          <input type="file" id="fFileInput" accept="image/*,application/pdf" multiple class="hidden">
+        </div>
+        <fieldset>
+          <legend><span data-i18n="f.split">Split between</span>
+            <span class="legend-actions">
+              <button type="button" class="link" id="fAll" data-i18n="f.all">All</button>
+              <button type="button" class="link" id="fNone" data-i18n="f.none">None</button>
+            </span>
+          </legend>
+          <label class="check inline"><input type="checkbox" id="fCustom"> <span data-i18n="f.custom">Custom amounts</span></label>
+          <div id="fShares" class="shares-pick"></div>
+          <p id="fPreview" class="muted"></p>
+        </fieldset>
+        <p id="fError" class="error"></p>
+        <button class="primary big" type="submit" id="fSubmit" data-i18n="f.saveNew">Save expense</button>
+      </form>
+    </div>
+  </div>
+
+  <button id="fab" class="fab" aria-label="Add expense" data-i18n-aria="fab">＋</button>
+
+  <nav class="tabs">
+    <button data-tab="home" class="active"><span class="ic">◔</span><span data-i18n="tab.home">Home</span></button>
+    <button data-tab="balances"><span class="ic">⇄</span><span data-i18n="tab.balances">Balances</span></button>
+    <button data-tab="people"><span class="ic">☺</span><span data-i18n="tab.people">People</span></button>
+  </nav>
+
+  <dialog id="confirmDlg">
+    <form method="dialog">
+      <h3 id="cTitle">Save this expense?</h3>
+      <div id="cBody"></div>
+      <div class="row dlg-actions">
+        <button value="cancel" class="grow" data-i18n="dlg.back">Back</button>
+        <button value="ok" class="primary grow" id="cOk">Confirm &amp; save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="shareDlg">
+    <form method="dialog">
+      <h3 id="shTitle"></h3>
+      <p class="muted" data-i18n="share.intro">Makes one web page with the month's spending, who paid, who still owes, and every expense. Anyone can open it in a browser; no app or account needed.</p>
+      <label class="check"><input type="checkbox" id="shFiles" checked> <span class="grow" data-i18n="share.files">Include photos &amp; PDFs</span></label>
+      <p id="shInfo" class="muted"></p>
+      <div class="row dlg-actions">
+        <button value="cancel" class="grow" data-i18n="share.cancel">Cancel</button>
+        <button value="ok" class="primary grow" data-i18n="share.ok">Share page</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="viewDlg" class="view-dlg">
+    <form method="dialog">
+      <div class="row view-head"><b id="vName" class="grow"></b><button value="cancel" class="icon-btn" aria-label="Close" data-i18n-aria="dlg.close">✕</button></div>
+      <div id="vBody" class="view-body"></div>
+      <div class="row dlg-actions">
+        <button type="button" id="vOpen" class="grow" data-i18n="view.open">Open</button>
+        <button type="button" id="vShare" class="primary grow" data-i18n="view.share">Share</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="i18n.js"></script>
+  <script src="logic.js"></script>
+  <script src="gh-sync.js"></script>
+  <script src="export.js"></script>
+  <script src="file-store.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

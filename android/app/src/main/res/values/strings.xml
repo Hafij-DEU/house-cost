@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">House Cost</string>
+    <string name="saved_downloads">Saved to Downloads/HouseCost</string>
+    <string name="no_app_open">No app can open this file</string>
+    <string name="no_browser">No browser installed</string>
+</resources>

@@ -1,0 +1,79 @@
+plugins {
+    id 'com.android.application'
+}
+
+// One version for web and Android: package.json.
+def appVersion = new groovy.json.JsonSlurper().parse(rootProject.file('../package.json')).version.toString()
+def parts = appVersion.replaceAll(/[-+].*$/, '').tokenize('.').collect { it.isInteger() ? it.toInteger() : 0 }
+while (parts.size() < 3) parts << 0
+
+// Release signing from environment variables; without them the release APK is unsigned.
+def keystorePath = System.getenv('HOUSECOST_KEYSTORE')
+
+// The web app (../web) is copied in at build time, served from assets/www.
+def webOut = layout.buildDirectory.dir('generated/web')
+tasks.register('copyWeb', Copy) {
+    from rootProject.file('../web')
+    into webOut.map { it.dir('www') }
+}
+
+android {
+    namespace 'com.hafij.housecost'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.hafij.housecost'
+        // MediaStore.Downloads (Excel export) needs API 29.
+        minSdk 29
+        targetSdk 35
+        versionCode Math.max(1, parts[0] * 10000 + parts[1] * 100 + parts[2])
+        versionName appVersion
+    }
+
+    sourceSets {
+        main.assets.srcDirs += webOut
+    }
+
+    signingConfigs {
+        if (keystorePath) {
+            release {
+                storeFile file(keystorePath)
+                storePassword System.getenv('HOUSECOST_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('HOUSECOST_KEY_ALIAS')
+                keyPassword System.getenv('HOUSECOST_KEY_PASSWORD')
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            applicationIdSuffix '.debug'
+            versionNameSuffix '-debug'
+        }
+        release {
+            minifyEnabled false
+            if (keystorePath) signingConfig signingConfigs.release
+        }
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    applicationVariants.all { variant ->
+        variant.outputs.all {
+            outputFileName = "HouseCost-${appVersion}-android-${variant.buildType.name}.apk"
+        }
+    }
+}
+
+dependencies {
+    implementation 'androidx.webkit:webkit:1.12.1'
+}
+
+preBuild.dependsOn copyWeb

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- House with a coin; content kept inside the 66dp safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path android:fillColor="#FFFFFF" android:pathData="M54,27 L80,48 L73,48 L73,79 L35,79 L35,48 L28,48 Z" />
+    <path android:fillColor="#F59E0B" android:pathData="M54,52 m-12,0 a12,12 0 1,0 24,0 a12,12 0 1,0 -24,0" />
+    <path android:fillColor="#FFFFFF" android:pathData="M52.5,44 L55.5,44 L55.5,60 L52.5,60 Z M49,48 L59,48 L59,50.5 L49,50.5 Z M49,54 L59,54 L59,56.5 L49,56.5 Z" />
+</vector>

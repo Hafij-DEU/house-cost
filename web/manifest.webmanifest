@@ -1,0 +1,11 @@
+{
+  "name": "House Cost",
+  "short_name": "House Cost",
+  "description": "Share house expenses: who paid, who owes, month by month.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F5F6FB",
+  "theme_color": "#4F46E5",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}
