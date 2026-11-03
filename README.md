@@ -26,11 +26,12 @@ nothing is deleted.
 
 ## App update (Android)
 
-From 0.1.4 on, Settings → App update checks the latest release on GitHub
-(also once a day by itself when online) and installs it. Android asks once to
-allow House Cost to install apps, then shows its own update dialog. The app
-only installs a newer House Cost signed with the same key, and all data stays.
-Versions 0.1.3 and older have no updater, so install 0.1.4 by hand once.
+Settings → App update checks the latest release on GitHub (also once a day by
+itself when online). Tap Update and the browser downloads the new APK; open it
+and tap Update. Android only accepts it when it is signed with the same key,
+and all data stays. The app does not install APKs itself, because Play Protect
+marks sideloaded apps that do as harmful (0.1.4 did; 0.1.5 does not).
+Versions 0.1.3 and older have no update button, so install 0.1.5 by hand once.
 
 ## Develop
 

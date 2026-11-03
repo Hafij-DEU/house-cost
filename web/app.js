@@ -1552,11 +1552,8 @@
     $('upBtn').textContent = upAvail ? T('up.install', { v: upAvail.version }) : T('up.check');
     $('upMsg').textContent = upLine();
   }
-  const upError = code => ({
-    download: () => T('up.err.download'), wrongApp: () => T('up.err.wrongApp'),
-    notNewer: () => T('up.err.notNewer'), wrongKey: () => T('up.err.wrongKey'),
-  }[code] || (() => T('up.err.net')));
-  /** Answers from Updater.java: available, none, downloading, installing, permission, error. */
+  const upError = code => (code === 'browser' ? () => T('up.err.browser') : () => T('up.err.net'));
+  /** Answers from Updater.java: available, none, opened (the browser downloads the APK), error. */
   window.__houseUpdate = info => {
     const s = info.state;
     if (s === 'available') {
@@ -1566,21 +1563,16 @@
     } else if (s === 'none') {
       upAvail = null;
       upLine = upQuiet ? () => '' : () => T('up.none');
-    } else if (s === 'downloading') upLine = () => T('up.downloading', { pct: Math.max(0, info.pct) });
-    else if (s === 'installing') upLine = () => T('up.installing');
-    else if (s === 'permission') upLine = () => T('up.permission');
+    } else if (s === 'opened') upLine = () => T('up.opened');
     else if (s === 'error') upLine = upQuiet ? () => '' : upError(info.code);
-    $('upBtn').disabled = s === 'downloading';
     upQuiet = false;
     renderUpdate();
   };
   if (host && host.checkUpdate) {
     $('upCard').classList.remove('hidden');
     $('upBtn').addEventListener('click', () => {
-      if (upAvail) {
-        upLine = () => T('up.starting');
-        host.installUpdate();
-      } else {
+      if (upAvail) host.installUpdate();
+      else {
         upLine = () => T('up.checking');
         host.checkUpdate();
       }
