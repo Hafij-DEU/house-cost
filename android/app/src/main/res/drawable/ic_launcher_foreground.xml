@@ -1,11 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- House with a coin; content kept inside the 66dp safe zone. -->
+<!-- House with a round window and a three-way split; same artwork as web/icon.svg. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path android:fillColor="#FFFFFF" android:pathData="M54,27 L80,48 L73,48 L73,79 L35,79 L35,48 L28,48 Z" />
-    <path android:fillColor="#F59E0B" android:pathData="M54,52 m-12,0 a12,12 0 1,0 24,0 a12,12 0 1,0 -24,0" />
-    <path android:fillColor="#FFFFFF" android:pathData="M52.5,44 L55.5,44 L55.5,60 L52.5,60 Z M49,48 L59,48 L59,50.5 L49,50.5 Z M49,54 L59,54 L59,56.5 L49,56.5 Z" />
+    <group android:scaleX="0.18" android:scaleY="0.18" android:translateX="7.92" android:translateY="6.48">
+        <path android:fillColor="#FFFFFF" android:strokeColor="#FFFFFF" android:strokeWidth="24"
+            android:strokeLineJoin="round" android:pathData="M324,148 L356,148 L356,202 L324,176 Z" />
+        <path android:fillColor="#FFFFFF" android:strokeColor="#FFFFFF" android:strokeWidth="24"
+            android:strokeLineJoin="round" android:fillType="evenOdd" android:pathData="M256,120 L400,236 L400,384 Q400,408 376,408 L136,408 Q112,408 112,384 L112,236 Z M168,312 A88,88 0 1,0 344,312 A88,88 0 1,0 168,312 Z" />
+        <path android:fillColor="#FBBF24" android:pathData="M261.2,309 L261.2,249 A60,60 0 0,1 313.16,339 Z" />
+        <path android:fillColor="#34D399" android:pathData="M256,318 L307.96,348 A60,60 0 0,1 204.04,348 Z" />
+        <path android:fillColor="#F472B6" android:pathData="M250.8,309 L198.84,339 A60,60 0 0,1 250.8,249 Z" />
+    </group>
 </vector>
