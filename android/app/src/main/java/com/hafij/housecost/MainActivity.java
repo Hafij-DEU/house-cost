@@ -149,6 +149,11 @@ public class MainActivity extends Activity {
         }
     }
 
+    /** Runs a line of JavaScript in the page (from any thread). */
+    void callPage(String js) {
+        runOnUiThread(() -> webView.evaluateJavascript(js, null));
+    }
+
     void toast(String text) {
         runOnUiThread(() -> Toast.makeText(this, text, Toast.LENGTH_SHORT).show());
     }

@@ -1544,6 +1544,58 @@
     savePersonal();
   });
 
+  // ---------- app update (Android only; the website updates itself) ----------
+  const UP_KEY = 'housecost.updateCheck';
+  let upAvail = null, upLine = () => '', upQuiet = false;
+  function renderUpdate() {
+    $('upVer').textContent = T('up.version', { v: host.appVersion() });
+    $('upBtn').textContent = upAvail ? T('up.install', { v: upAvail.version }) : T('up.check');
+    $('upMsg').textContent = upLine();
+  }
+  const upError = code => ({
+    download: () => T('up.err.download'), wrongApp: () => T('up.err.wrongApp'),
+    notNewer: () => T('up.err.notNewer'), wrongKey: () => T('up.err.wrongKey'),
+  }[code] || (() => T('up.err.net')));
+  /** Answers from Updater.java: available, none, downloading, installing, permission, error. */
+  window.__houseUpdate = info => {
+    const s = info.state;
+    if (s === 'available') {
+      upAvail = info;
+      upLine = () => T('up.available', { v: info.version, size: size(info.size) });
+      if (upQuiet) toast(T('up.toast', { v: info.version }));
+    } else if (s === 'none') {
+      upAvail = null;
+      upLine = upQuiet ? () => '' : () => T('up.none');
+    } else if (s === 'downloading') upLine = () => T('up.downloading', { pct: Math.max(0, info.pct) });
+    else if (s === 'installing') upLine = () => T('up.installing');
+    else if (s === 'permission') upLine = () => T('up.permission');
+    else if (s === 'error') upLine = upQuiet ? () => '' : upError(info.code);
+    $('upBtn').disabled = s === 'downloading';
+    upQuiet = false;
+    renderUpdate();
+  };
+  if (host && host.checkUpdate) {
+    $('upCard').classList.remove('hidden');
+    $('upBtn').addEventListener('click', () => {
+      if (upAvail) {
+        upLine = () => T('up.starting');
+        host.installUpdate();
+      } else {
+        upLine = () => T('up.checking');
+        host.checkUpdate();
+      }
+      renderUpdate();
+    });
+    // A quiet look once a day when the app starts; only a new version is shown.
+    let last = 0;
+    try { last = Number(localStorage.getItem(UP_KEY)) || 0; } catch (e) { /* private storage */ }
+    if (navigator.onLine && Date.now() - last > 20 * 3600 * 1000) {
+      try { localStorage.setItem(UP_KEY, String(Date.now())); } catch (e) { /* private storage */ }
+      upQuiet = true;
+      host.checkUpdate();
+    }
+  }
+
   // ---------- language ----------
   /** Static text from data-i18n attributes; the rest comes from render(). */
   function applyLang() {
@@ -1557,6 +1609,7 @@
     $('pSubmit').textContent = T(pEditing ? 'f.saveEdit' : 'p.save');
     updatePreview();
     if ($('pSheet').classList.contains('open')) { pRenderCats(); pPreview(); }
+    if (host && host.checkUpdate) renderUpdate();
   }
   $('sLang').addEventListener('change', e => {
     L.setPref(e.target.value);

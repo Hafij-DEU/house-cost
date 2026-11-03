@@ -124,6 +124,12 @@
           <input id="sCurrency" maxlength="4">
         </label>
       </div>
+      <!-- Android app only: update from the latest GitHub release -->
+      <div id="upCard" class="card form hidden">
+        <p><b data-i18n="up.title">App update</b> · <span id="upVer"></span></p>
+        <p id="upMsg" class="muted"></p>
+        <button type="button" id="upBtn" data-i18n="up.check">Check for updates</button>
+      </div>
       <div class="card form">
         <p class="muted" data-i18n="set.backupIntro">Backup text: copy it somewhere safe; paste it back to restore.</p>
         <textarea id="sBackup" rows="3" placeholder="Paste a backup here to restore" data-i18n-ph="set.backupPh"></textarea>

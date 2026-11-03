@@ -1,6 +1,6 @@
 // Offline cache for the web app: app files come from the cache first and are
 // refreshed in the background. GitHub API calls are never cached.
-const CACHE = 'housecost-v5';
+const CACHE = 'housecost-v6';
 const FILES = ['./', 'index.html', 'style.css', 'i18n.js', 'logic.js', 'gh-sync.js', 'house-key.js', 'export.js', 'file-store.js', 'personal.js', 'app.js', 'icon.svg', 'manifest.webmanifest'];
 
 self.addEventListener('install', e => {

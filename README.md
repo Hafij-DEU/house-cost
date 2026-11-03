@@ -24,6 +24,14 @@ Use Personal → Save backup now and then. The backup is one JSON file with the
 receipts inside. Restoring it merges: new entries come in, newer versions win,
 nothing is deleted.
 
+## App update (Android)
+
+From 0.1.4 on, Settings → App update checks the latest release on GitHub
+(also once a day by itself when online) and installs it. Android asks once to
+allow House Cost to install apps, then shows its own update dialog. The app
+only installs a newer House Cost signed with the same key, and all data stays.
+Versions 0.1.3 and older have no updater, so install 0.1.4 by hand once.
+
 ## Develop
 
 ```bash

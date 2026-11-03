@@ -24,9 +24,28 @@ import java.io.OutputStream;
 final class Host {
 
     private final MainActivity activity;
+    private final Updater updater;
 
     Host(MainActivity activity) {
         this.activity = activity;
+        this.updater = new Updater(activity);
+    }
+
+    @JavascriptInterface
+    public String appVersion() {
+        return BuildConfig.VERSION_NAME;
+    }
+
+    /** Looks up the latest GitHub release; the answer comes back through window.__houseUpdate. */
+    @JavascriptInterface
+    public void checkUpdate() {
+        updater.check();
+    }
+
+    /** Downloads and installs the release found by checkUpdate(); progress through window.__houseUpdate. */
+    @JavascriptInterface
+    public void installUpdate() {
+        updater.install();
     }
 
     /** Writes the file to Downloads/HouseCost through MediaStore (no storage permission needed). */
