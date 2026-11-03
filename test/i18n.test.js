@@ -8,7 +8,7 @@ const L = require('../web/i18n.js');
 test('every key used in the web app exists in English and Turkish', () => {
   const web = path.join(__dirname, '..', 'web');
   const used = new Set();
-  for (const f of ['app.js', 'export.js', 'logic.js', 'gh-sync.js', 'index.html']) {
+  for (const f of ['app.js', 'personal.js', 'export.js', 'logic.js', 'gh-sync.js', 'index.html']) {
     const src = fs.readFileSync(path.join(web, f), 'utf8');
     for (const m of src.matchAll(/(?:\bT|\bt|say)\('([\w.]+)'/g)) used.add(m[1]);
     for (const m of src.matchAll(/data-i18n(?:-html|-ph|-title|-aria)?="([\w.]+)"/g)) used.add(m[1]);

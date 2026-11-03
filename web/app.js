@@ -162,7 +162,7 @@
     tab = name;
     document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.id === 'tab-' + name));
     document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
-    $('monthNav').classList.toggle('hidden', name !== 'home');
+    $('monthNav').classList.toggle('hidden', name !== 'home' && name !== 'personal');
     $('fab').classList.toggle('hidden', name === 'people');
     window.scrollTo(0, 0);
   }
@@ -173,6 +173,7 @@
     const dlg = document.querySelector('dialog[open]');
     if (dlg) { dlg.close('cancel'); return true; }
     if ($('sheet').classList.contains('open')) { closeSheet(); return true; }
+    if ($('pSheet').classList.contains('open')) { closePSheet(); return true; }
     if (tab !== 'home') { showTab('home'); return true; }
     return false;
   };
@@ -182,6 +183,7 @@
     renderHome();
     renderBalances();
     renderPeople();
+    renderPersonal();
     renderSyncUi();
   }
 
@@ -303,13 +305,13 @@
 
   // Object URLs of local images, made once per file.
   const thumbUrls = new Map();
-  async function loadThumbs(root) {
+  async function loadThumbs(root, files = state.files, store = FS) {
     for (const el of root.querySelectorAll('.thumb[data-file]')) {
-      const f = state.files.find(x => x.id === el.dataset.file);
+      const f = files.find(x => x.id === el.dataset.file);
       if (!f || !f.type.startsWith('image/')) continue;
       let url = thumbUrls.get(f.id);
       if (!url) {
-        const blob = await FS.get(f.id).catch(() => null);
+        const blob = await store.get(f.id).catch(() => null);
         if (!blob) { el.textContent = '☁ ' + f.name.slice(0, 14); continue; }
         url = URL.createObjectURL(blob);
         thumbUrls.set(f.id, url);
@@ -318,8 +320,8 @@
     }
   }
 
-  $('mPrev').addEventListener('click', () => { curYm = shiftYm(curYm, -1); selDay = null; renderHome(); });
-  $('mNext').addEventListener('click', () => { curYm = shiftYm(curYm, 1); selDay = null; renderHome(); });
+  $('mPrev').addEventListener('click', () => { curYm = shiftYm(curYm, -1); selDay = null; renderHome(); renderPersonal(); });
+  $('mNext').addEventListener('click', () => { curYm = shiftYm(curYm, 1); selDay = null; renderHome(); renderPersonal(); });
   $('dayClear').addEventListener('click', () => { selDay = null; renderHome(); });
   $('calGrid').addEventListener('click', e => {
     const d = e.target.closest('[data-day]');
@@ -400,6 +402,11 @@
       return toast(T('file.dlErr', { msg: e.message }));
     }
     if (!blob) return toast(T(ghClient() ? 'file.notHere' : 'file.otherPhone'));
+    showBlob(f, blob);
+    loadThumbs($('expenseList'));
+  }
+
+  function showBlob(f, blob) {
     if (viewing) URL.revokeObjectURL(viewing.url);
     viewing = { f, blob, url: URL.createObjectURL(blob) };
     $('vName').textContent = f.name;
@@ -407,7 +414,6 @@
       ? `<img src="${viewing.url}" alt="${esc(f.name)}">`
       : `<div class="empty"><span class="big">📄</span>${esc(f.name)}<br>${size(blob.size)}</div>`;
     $('viewDlg').showModal();
-    loadThumbs($('expenseList'));
   }
   $('vOpen').addEventListener('click', async () => {
     if (!viewing) return;
@@ -475,6 +481,7 @@
   }
 
   $('fab').addEventListener('click', () => {
+    if (tab === 'personal') return openPSheet(null);
     if (state.people.length < 1) { toast(T('toast.addPeopleFirst')); showTab('people'); return; }
     openSheet(null);
   });
@@ -533,32 +540,38 @@
   $('fAll').addEventListener('click', () => { document.querySelectorAll('#fShares input[type=checkbox]').forEach(i => (i.checked = true)); updatePreview(); });
   $('fNone').addEventListener('click', () => { document.querySelectorAll('#fShares input[type=checkbox]').forEach(i => (i.checked = false)); updatePreview(); });
 
-  function renderFormFiles() {
-    $('fFiles').innerHTML = formFiles.map((f, i) => f.removed ? '' : `<div class="file-item">
+  const renderFormFiles = () => renderFiles($('fFiles'), formFiles, FS);
+
+  /** The attachment list of a form; existing attachments show their local image when there is one. */
+  function renderFiles(box, list, store) {
+    box.innerHTML = list.map((f, i) => f.removed ? '' : `<div class="file-item">
       <button type="button" class="thumb ${f.type === 'application/pdf' ? 'pdf' : ''}" data-ffile="${i}" title="${esc(f.name)}"
         style="${f.url ? `background-image:url('${f.url}')` : ''}">${f.type.startsWith('image/') ? '' : esc(f.name.slice(0, 18))}</button>
       <button type="button" class="x" data-fdel="${i}" aria-label="${T('f.remove')}">✕</button></div>`).join('');
-    // Existing attachments show their local image when there is one.
-    formFiles.forEach(async (f, i) => {
+    list.forEach(async (f, i) => {
       if (f.url || !f.record || !f.type.startsWith('image/')) return;
-      const blob = await FS.get(f.record.id).catch(() => null);
+      const blob = await store.get(f.record.id).catch(() => null);
       if (!blob) return;
       f.url = URL.createObjectURL(blob);
-      const el = document.querySelector(`[data-ffile="${i}"]`);
+      const el = box.querySelector(`[data-ffile="${i}"]`);
       if (el) el.style.backgroundImage = `url('${f.url}')`;
     });
   }
 
   $('fAddFile').addEventListener('click', () => $('fFileInput').click());
-  $('fFileInput').addEventListener('change', async e => {
-    const picked = [...e.target.files];
-    e.target.value = '';
+  /** Adds the photos/PDFs picked in a file input to a form's attachment list. */
+  async function addPicked(input, list) {
+    const picked = [...input.files];
+    input.value = '';
     for (const raw of picked) {
       if (!/^image\//.test(raw.type) && raw.type !== 'application/pdf') { toast(T('f.onlyMedia', { name: raw.name })); continue; }
       const file = await FS.prepare(raw);
       if (file.size > MAX_FILE) { toast(T('f.tooBig', { name: raw.name, max: size(MAX_FILE) })); continue; }
-      formFiles.push({ blob: file, name: file.name, type: file.type, url: file.type.startsWith('image/') ? URL.createObjectURL(file) : null });
+      list.push({ blob: file, name: file.name, type: file.type, url: file.type.startsWith('image/') ? URL.createObjectURL(file) : null });
     }
+  }
+  $('fFileInput').addEventListener('change', async e => {
+    await addPicked(e.target, formFiles);
     renderFormFiles();
   });
   $('fFiles').addEventListener('click', e => {
@@ -1128,6 +1141,409 @@
     render();
   }
 
+  // ---------- personal (this device only) ----------
+  // Own spending and splits with anyone. Kept apart from the house state: never synced,
+  // never in the house file or backup. Attachments live in their own database, so the
+  // house file cleanup never touches them.
+  const P = window.Personal, P_KEY = 'housecost.personal.v1';
+  const PFS = FS.named('housecost-personal-files');
+  let personal = loadPersonal();
+  const openPEntry = new Set();
+
+  function loadPersonal() {
+    const raw = localStorage.getItem(P_KEY);
+    if (!raw) return P.emptyPersonal();
+    try {
+      return P.validatePersonal(JSON.parse(raw));
+    } catch {
+      // Keep the unreadable copy instead of overwriting it with an empty one.
+      localStorage.setItem(P_KEY + '.broken', raw);
+      return P.emptyPersonal();
+    }
+  }
+  function savePersonal() {
+    localStorage.setItem(P_KEY, JSON.stringify(personal));
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+    render();
+  }
+  const pWho = w => (w === P.ME ? T('you') : esc(w));
+  const pCatName = id => T('pcat.' + id);
+
+  function renderPersonal() {
+    const rep = P.monthReport(personal, curYm);
+    $('pTotal').textContent = fmt(rep.total);
+    $('pSub').textContent = T('n.entry', { n: rep.entries.length });
+    $('pCatBar').innerHTML = rep.byCategory.map(c => `<span style="flex:${c.amount};background:${c.color}" title="${esc(pCatName(c.id))}"></span>`).join('');
+    $('pCatBar').classList.toggle('hidden', !rep.total);
+    $('pCatLegend').innerHTML = rep.byCategory.map(c =>
+      `<span class="lg"><i style="background:${c.color}"></i>${c.emoji} ${esc(pCatName(c.id))} <b>${money(c.amount)}</b> <span class="muted">${Math.round(c.amount * 100 / rep.total)}%</span></span>`).join('');
+
+    const bal = P.balances(personal);
+    $('pTotals').innerHTML = stat(T('stat.owedMe'), bal.owedToMe, bal.owedToMe ? 'pos' : '') + stat(T('stat.iOwe'), bal.iOwe, bal.iOwe ? 'neg' : '');
+    $('pPeople').innerHTML = bal.people.map(r => `<div class="card person">${avatar(r)}
+      <span class="grow"><b>${esc(r.name)}</b>
+        ${r.owesMe ? `<span class="pos">${T('p.owesMe', { amt: money(r.owesMe) })}</span>` : ''}
+        ${r.iOwe ? `<span class="neg">${T('p.iOweThem', { amt: money(r.iOwe) })}</span>` : ''}</span>
+      <button class="small" data-psettle="${esc(r.name)}">${T('debt.settled')}</button></div>`).join('');
+
+    if (!rep.entries.length) {
+      $('pList').innerHTML = `<div class="empty"><span class="big">🔒</span>${T('p.empty', { month: esc(X.monthName(curYm)) })}<br>${T('list.tapAdd')}</div>`;
+    } else {
+      let html = '', lastDate = '';
+      for (const e of rep.entries) {
+        if (e.date !== lastDate) {
+          lastDate = e.date;
+          const dayTotal = rep.entries.filter(x => x.date === e.date).reduce((s, x) => s + P.myCost(x), 0);
+          html += `<div class="day-group"><span>${prettyDate(e.date)}</span><span>${money(dayTotal)}</span></div>`;
+        }
+        html += pCard(e);
+      }
+      $('pList').innerHTML = html;
+      loadThumbs($('pList'), personal.files, PFS);
+    }
+
+    const names = new Set();
+    for (const e of personal.entries) for (const s of e.shares) if (s.who !== P.ME) names.add(s.who);
+    $('pNames').innerHTML = [...names].map(n => `<option value="${esc(n)}">`).join('');
+  }
+
+  function pCard(e) {
+    const cat = P.pcategoryOf(e.category);
+    const files = P.filesOf(personal, e.id);
+    const open = P.owedToMe(e) + P.iOwe(e);
+    const chips = e.shares.map(s => {
+      if (s.who === e.paidBy) return `<span class="chip payer">${pWho(s.who)} ${money(s.amount)} · ${T('chip.paidIt')}</span>`;
+      return `<button class="chip ${s.paid ? 'paid' : 'unpaid'}" data-ptoggle="${e.id}" data-who="${esc(s.who)}" title="${T('chip.tap')}">
+        ${s.paid ? '✓' : '○'} ${pWho(s.who)} ${money(s.amount)} ${s.paid ? T('chip.paidBack') : T('chip.owes')}</button>`;
+    }).join('');
+    const split = e.shares.length > 0;
+    return `<div class="exp ${openPEntry.has(e.id) ? 'open' : ''}" style="--cat:${cat[2]}">
+      <div class="exp-row" data-popen="${e.id}">
+        <span class="exp-ic">${cat[1]}</span>
+        <span class="exp-main"><b>${esc(e.title)}</b>
+          <small>${esc(pCatName(cat[0]))}${split ? ' · ' + T('card.paidBy', { name: pWho(e.paidBy) }) + ' · ' + T('n.person', { n: e.shares.length }) : ''}${files.length ? ' · 📎' + files.length : ''}</small></span>
+        <span class="exp-amt"><b>${money(P.myCost(e))}</b>
+          ${split ? `<small class="muted">${T('p.ofTotal', { amt: money(e.amount) })}</small>` +
+            (open ? `<small class="neg">${T('card.open', { amt: money(open) })}</small>` : `<small class="pos">${T('card.settled')}</small>`) : ''}</span>
+      </div>
+      <div class="exp-body">
+        ${e.note ? `<div class="note">${esc(e.note)}</div>` : ''}
+        ${split ? `<div class="chips">${chips}</div>` : ''}
+        ${files.length ? `<div class="thumbs">${files.map(thumb).join('')}</div>` : ''}
+        <div class="stamp">${T('card.lastChange', { ago: esc(ago(e.updatedAt)) })}</div>
+        <div class="exp-actions"><button class="small" data-pedit="${e.id}">${T('act.edit')}</button><button class="small" data-pdel="${e.id}">${T('act.delete')}</button></div>
+      </div></div>`;
+  }
+
+  function pDropFiles(files) {
+    for (const f of files) {
+      PFS.del(f.id).catch(() => {});
+      if (thumbUrls.has(f.id)) { URL.revokeObjectURL(thumbUrls.get(f.id)); thumbUrls.delete(f.id); }
+    }
+  }
+
+  async function pView(id) {
+    const f = personal.files.find(x => x.id === id);
+    if (!f) return;
+    const blob = await PFS.get(f.id).catch(() => null);
+    if (!blob) return toast(T('p.fileGone'));
+    showBlob(f, blob);
+  }
+
+  $('pList').addEventListener('click', async e => {
+    const t = e.target.closest('[data-ptoggle]');
+    if (t) {
+      const entry = personal.entries.find(x => x.id === t.dataset.ptoggle);
+      const share = entry && entry.shares.find(s => s.who === t.dataset.who);
+      if (share && P.setPaid(personal, entry.id, share.who, !share.paid)) savePersonal();
+      return;
+    }
+    const f = e.target.closest('[data-file]');
+    if (f) return pView(f.dataset.file);
+    const ed = e.target.closest('[data-pedit]');
+    if (ed) return openPSheet(ed.dataset.pedit);
+    const del = e.target.closest('[data-pdel]');
+    if (del) {
+      const entry = personal.entries.find(x => x.id === del.dataset.pdel);
+      const nFiles = P.filesOf(personal, entry.id).length;
+      if (!await ask(T('del.q'), `<div class="sum-line"><span>${esc(entry.title)}</span><b>${money(entry.amount)}</b></div>` +
+        (nFiles ? `<p class="muted">${T('p.delFiles', { n: nFiles })}</p>` : ''), T('del.ok'))) return;
+      pDropFiles(P.removeEntry(personal, entry.id));
+      toast(T('toast.deleted'));
+      savePersonal();
+      return;
+    }
+    const row = e.target.closest('[data-popen]');
+    if (row) {
+      const id = row.dataset.popen;
+      if (openPEntry.has(id)) openPEntry.delete(id); else openPEntry.add(id);
+      row.parentElement.classList.toggle('open');
+    }
+  });
+
+  $('pPeople').addEventListener('click', async e => {
+    const b = e.target.closest('[data-psettle]');
+    if (!b || !await ask(T('p.settleQ', { name: b.dataset.psettle }), '', T('debt.settled'))) return;
+    const n = P.settleWith(personal, b.dataset.psettle);
+    toast(T('toast.nMarked', { n }));
+    savePersonal();
+  });
+
+  // ---------- personal add / edit sheet ----------
+  let pEditing = null, pCat = 'food', pFiles = [];
+
+  const pAmt = cents => (cents == null ? '' : (cents / 100).toString());
+  const pMeRow = cents => `<div class="check prow me"><span class="grow">${T('you')}</span>
+    <input class="amt" inputmode="decimal" placeholder="0.00" value="${pAmt(cents)}"></div>`;
+  const pRow = (name, cents) => `<div class="check prow">
+    <input class="pname" list="pNames" maxlength="30" placeholder="${T('ppl.name')}" value="${esc(name || '')}">
+    <input class="amt" inputmode="decimal" placeholder="0.00" value="${pAmt(cents)}">
+    <button type="button" class="x" data-prm aria-label="${T('f.remove')}">✕</button></div>`;
+
+  function openPSheet(id) {
+    const entry = id && personal.entries.find(e => e.id === id);
+    pEditing = entry ? entry.id : null;
+    $('pSheetTitle').textContent = T(entry ? 'p.sheetEdit' : 'p.sheetNew');
+    $('pSubmit').textContent = T(entry ? 'f.saveEdit' : 'p.save');
+    $('pError').textContent = '';
+    pFiles = [];
+    if (entry) {
+      $('pAmount').value = pAmt(entry.amount);
+      $('pTitle').value = entry.title;
+      $('pDate').value = entry.date;
+      $('pNote').value = entry.note || '';
+      pCat = entry.category;
+      const split = entry.shares.length > 0;
+      $('pSplit').checked = split;
+      const mine = entry.shares.find(s => s.who === P.ME);
+      const others = entry.shares.filter(s => s.who !== P.ME);
+      $('pRows').innerHTML = pMeRow(mine ? mine.amount : 0) + (split ? others.map(s => pRow(s.who, s.amount)).join('') : pRow(''));
+      const equal = split && window.HouseCost.splitEqual(entry.amount, entry.shares.map(s => s.who));
+      $('pCustom').checked = split && !equal.every((s, i) => s.amount === entry.shares[i].amount);
+      pRenderPayer(entry.paidBy);
+      pFiles = P.filesOf(personal, entry.id).map(f => ({ record: f, name: f.name, type: f.type }));
+    } else {
+      $('pAmount').value = '';
+      $('pTitle').value = '';
+      $('pNote').value = '';
+      pCat = 'food';
+      const thisMonth = H.today().slice(0, 7);
+      $('pDate').value = curYm === thisMonth ? H.today() : curYm + '-01';
+      $('pSplit').checked = false;
+      $('pCustom').checked = false;
+      $('pRows').innerHTML = pMeRow(null) + pRow('');
+      pRenderPayer(P.ME);
+    }
+    pRenderCats();
+    renderFiles($('pFiles'), pFiles, PFS);
+    pApplySplit();
+    $('pSheet').classList.add('open');
+    $('pSheet').setAttribute('aria-hidden', 'false');
+    if (!entry) setTimeout(() => $('pAmount').focus(), 220);
+  }
+
+  function closePSheet() {
+    $('pSheet').classList.remove('open');
+    $('pSheet').setAttribute('aria-hidden', 'true');
+    document.activeElement && document.activeElement.blur();
+    for (const f of pFiles) if (f.url) URL.revokeObjectURL(f.url);
+    pFiles = [];
+    pEditing = null;
+  }
+  $('pClose').addEventListener('click', closePSheet);
+  $('pSheet').addEventListener('click', e => { if (e.target === $('pSheet')) closePSheet(); });
+
+  function pRenderCats() {
+    $('pCats').innerHTML = P.PCATEGORIES.map(([id, emoji, color]) =>
+      `<button type="button" class="cat-opt ${id === pCat ? 'on' : ''}" style="--cat:${color}" data-pcat="${id}"><span class="e">${emoji}</span>${esc(pCatName(id))}</button>`).join('');
+  }
+  $('pCats').addEventListener('click', e => {
+    const b = e.target.closest('[data-pcat]');
+    if (!b) return;
+    pCat = b.dataset.pcat;
+    pRenderCats();
+  });
+
+  /** The split as typed: other names, and the custom amounts when that is on. */
+  function pReadSplit() {
+    const rows = [...$('pRows').querySelectorAll('.prow')];
+    const people = rows.filter(r => !r.classList.contains('me')).map(r => r.querySelector('.pname').value.trim()).filter(Boolean);
+    if (!$('pCustom').checked) return { people, customShares: null };
+    const customShares = rows.map(r => {
+      const who = r.classList.contains('me') ? P.ME : r.querySelector('.pname').value.trim();
+      return who ? { who, amount: H.parseAmount(r.querySelector('.amt').value) || 0 } : null;
+    }).filter(Boolean);
+    return { people, customShares };
+  }
+
+  function pRenderPayer(keep) {
+    const want = keep !== undefined ? keep : $('pPayer').value;
+    const names = pReadSplit().people;
+    $('pPayer').innerHTML = `<option value="${P.ME}">${T('you')}</option>` + names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+    $('pPayer').value = want === P.ME || names.includes(want) ? want : P.ME;
+  }
+
+  function pApplySplit() {
+    $('pSplitBox').classList.toggle('hidden', !$('pSplit').checked);
+    $('pRows').querySelectorAll('.amt').forEach(i => i.classList.toggle('hidden', !$('pCustom').checked));
+    pPreview();
+  }
+
+  function pPreview() {
+    const p = $('pPreview');
+    if (!$('pSplit').checked) { p.textContent = ''; return; }
+    const amount = H.parseAmount($('pAmount').value);
+    const { people, customShares } = pReadSplit();
+    const n = people.length + 1;
+    if (!people.length) { p.textContent = T('p.addName'); return; }
+    if (isNaN(amount)) { p.textContent = T('prev.sharing', { n }); return; }
+    if (customShares) {
+      const left = amount - customShares.reduce((s, x) => s + x.amount, 0);
+      p.textContent = left === 0 ? T('prev.ok') : (left > 0 ? T('prev.left', { amt: fmt(left) }) : T('prev.over', { amt: fmt(-left) }));
+      return;
+    }
+    const split = H.splitEqual(amount, [P.ME, ...people]);
+    const a = split[0].amount, b = split[split.length - 1].amount;
+    p.textContent = T('prev.each', { amt: fmt(b) + (a !== b ? '–' + fmt(a) : ''), n });
+  }
+
+  $('pForm').addEventListener('input', e => {
+    if (e.target.classList.contains('pname')) pRenderPayer();
+    pPreview();
+  });
+  $('pSplit').addEventListener('change', pApplySplit);
+  $('pCustom').addEventListener('change', pApplySplit);
+  $('pAddPerson').addEventListener('click', () => {
+    $('pRows').insertAdjacentHTML('beforeend', pRow(''));
+    pApplySplit();
+    $('pRows').lastElementChild.querySelector('.pname').focus();
+  });
+  $('pRows').addEventListener('click', e => {
+    const x = e.target.closest('[data-prm]');
+    if (!x) return;
+    x.parentElement.remove();
+    pRenderPayer();
+    pPreview();
+  });
+
+  $('pAddFile').addEventListener('click', () => $('pFileInput').click());
+  $('pFileInput').addEventListener('change', async e => {
+    await addPicked(e.target, pFiles);
+    renderFiles($('pFiles'), pFiles, PFS);
+  });
+  $('pFiles').addEventListener('click', e => {
+    const d = e.target.closest('[data-fdel]');
+    if (d) { pFiles[+d.dataset.fdel].removed = true; renderFiles($('pFiles'), pFiles, PFS); }
+  });
+
+  $('pForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const err = $('pError');
+    const amount = H.parseAmount($('pAmount').value);
+    const title = $('pTitle').value.trim();
+    err.textContent = '';
+    if (isNaN(amount)) return (err.textContent = T('err.amount'));
+    if (!title) return (err.textContent = T('err.title'));
+    if (!$('pDate').value) return (err.textContent = T('err.date'));
+    let people = [], customShares = null, paidBy = P.ME;
+    if ($('pSplit').checked) {
+      ({ people, customShares } = pReadSplit());
+      paidBy = $('pPayer').value;
+      if (!people.length) return (err.textContent = T('p.addName'));
+      const bad = P.splitError({ amount, paidBy, people, customShares });
+      if (bad) return (err.textContent = T(bad));
+    }
+
+    const entry = P.makeEntry({ title, amount, date: $('pDate').value, category: pCat, note: $('pNote').value, paidBy, people, customShares });
+    const old = pEditing && personal.entries.find(x => x.id === pEditing);
+    if (old) {
+      entry.id = old.id;
+      // Keep "paid back" ticks where the payer and that share did not change.
+      if (old.paidBy === entry.paidBy) {
+        for (const s of entry.shares) {
+          const before = old.shares.find(o => o.who === s.who);
+          if (before && before.amount === s.amount && before.paid) s.paid = true;
+        }
+      }
+    }
+
+    try {
+      for (const f of pFiles) {
+        if (f.removed && f.record) {
+          pDropFiles([f.record]);
+          personal.files = personal.files.filter(x => x.id !== f.record.id);
+        } else if (!f.removed && f.blob) {
+          const rec = P.addFile(personal, { entryId: entry.id, name: f.name, type: f.type, size: f.blob.size });
+          await PFS.put(rec.id, f.blob);
+        }
+      }
+    } catch (e2) {
+      toast(T('err.storeFile', { msg: e2.message }));
+    }
+
+    if (old) personal.entries[personal.entries.indexOf(old)] = entry;
+    else personal.entries.push(entry);
+    curYm = entry.date.slice(0, 7);
+    openPEntry.add(entry.id);
+    closePSheet();
+    toast(T(old ? 'toast.saved' : 'p.toastAdded'));
+    savePersonal();
+  });
+
+  // ---------- personal backup ----------
+  function dataUrlToBlob(url) {
+    const [head, b64] = url.split(',');
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new Blob([bytes], { type: (head.match(/^data:([^;]+)/) || [])[1] || '' });
+  }
+
+  $('pSave').addEventListener('click', async () => {
+    if (!personal.entries.length) return toast(T('p.nothing'));
+    toast(T('share.preparing'));
+    const blobs = {};
+    for (const f of personal.files) {
+      const b = await PFS.get(f.id).catch(() => null);
+      if (b) blobs[f.id] = await FS.blobToDataUrl(b);
+    }
+    const text = JSON.stringify(P.makeBackup(personal, blobs));
+    await deliver(`house-cost-personal-${H.today()}.json`, 'application/json', new TextEncoder().encode(text), 'save');
+    $('pMsg').textContent = T('p.saved', { n: personal.entries.length });
+  });
+
+  $('pLoad').addEventListener('click', () => $('pInput').click());
+  $('pInput').addEventListener('change', async e => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    let back;
+    try {
+      back = P.readBackup(JSON.parse(await file.text()));
+    } catch (e2) {
+      $('pMsg').textContent = T('bk.err', { msg: e2.message });
+      return;
+    }
+    if (!await ask(T('p.restoreQ'), `<p>${T('p.restoreBody', { n: back.data.entries.length })}</p>`, T('set.restore'))) return;
+    const got = P.mergePersonal(personal, back.data);
+    for (const f of personal.files) {
+      const url = back.blobs[f.id];
+      if (!url || await PFS.get(f.id).catch(() => null)) continue;
+      try { await PFS.put(f.id, dataUrlToBlob(url)); } catch (e3) { toast(T('err.storeFile', { msg: e3.message })); }
+    }
+    $('pMsg').textContent = T('p.restored', { n: got.entries, files: got.files });
+    savePersonal();
+  });
+
+  $('pReset').addEventListener('click', async () => {
+    if (!await ask(T('p.resetQ'), `<p>${T('p.resetBody')}</p>`, T('reset.ok'))) return;
+    pDropFiles(personal.files);
+    personal = P.emptyPersonal();
+    openPEntry.clear();
+    toast(T('p.resetDone'));
+    savePersonal();
+  });
+
   // ---------- language ----------
   /** Static text from data-i18n attributes; the rest comes from render(). */
   function applyLang() {
@@ -1137,7 +1553,10 @@
     formPeopleKey = '';
     $('sheetTitle').textContent = T(editingId ? 'sheet.edit' : 'sheet.new');
     $('fSubmit').textContent = T(editingId ? 'f.saveEdit' : 'f.saveNew');
+    $('pSheetTitle').textContent = T(pEditing ? 'p.sheetEdit' : 'p.sheetNew');
+    $('pSubmit').textContent = T(pEditing ? 'f.saveEdit' : 'p.save');
     updatePreview();
+    if ($('pSheet').classList.contains('open')) { pRenderCats(); pPreview(); }
   }
   $('sLang').addEventListener('change', e => {
     L.setPref(e.target.value);

@@ -11,6 +11,19 @@ All data stays on the device until you sync. To share it with housemates, create
 
 Without GitHub, use People → Send / save file and Import & merge.
 
+## Personal (offline only)
+
+The 🔒 Personal tab keeps your own spending: what you paid, splits with
+anyone (free-text names, not only housemates), who still owes whom, and the
+PDF or photo receipts that go with each entry. It lives only on this device
+(localStorage `housecost.personal.v1`, files in IndexedDB
+`housecost-personal-files`). It is never synced, never in the house file and
+never in the house backup.
+
+Use Personal → Save backup now and then. The backup is one JSON file with the
+receipts inside. Restoring it merges: new entries come in, newer versions win,
+nothing is deleted.
+
 ## Develop
 
 ```bash

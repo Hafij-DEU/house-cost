@@ -1,37 +1,43 @@
 // Local bytes of attached photos/PDFs, in IndexedDB (localStorage is far too
-// small). Keyed by the file record id from state.files.
+// small). Keyed by the file record id from state.files (or personal.files).
 (function (root) {
   'use strict';
-  const DB = 'housecost-files', STORE = 'blobs';
-  let dbPromise = null;
+  const STORE = 'blobs';
 
-  function db() {
-    if (!dbPromise) {
-      dbPromise = new Promise((resolve, reject) => {
-        const req = indexedDB.open(DB, 1);
-        req.onupgradeneeded = () => req.result.createObjectStore(STORE);
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
+  /** A blob store in its own IndexedDB database, opened on first use. */
+  function named(name) {
+    let dbPromise = null;
+
+    function db() {
+      if (!dbPromise) {
+        dbPromise = new Promise((resolve, reject) => {
+          const req = indexedDB.open(name, 1);
+          req.onupgradeneeded = () => req.result.createObjectStore(STORE);
+          req.onsuccess = () => resolve(req.result);
+          req.onerror = () => reject(req.error);
+        });
+      }
+      return dbPromise;
+    }
+
+    async function run(mode, fn) {
+      const d = await db();
+      return new Promise((resolve, reject) => {
+        const tx = d.transaction(STORE, mode);
+        const req = fn(tx.objectStore(STORE));
+        tx.oncomplete = () => resolve(req && req.result);
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error || new Error('Storage full?'));
       });
     }
-    return dbPromise;
-  }
 
-  async function run(mode, fn) {
-    const d = await db();
-    return new Promise((resolve, reject) => {
-      const tx = d.transaction(STORE, mode);
-      const req = fn(tx.objectStore(STORE));
-      tx.oncomplete = () => resolve(req && req.result);
-      tx.onerror = () => reject(tx.error);
-      tx.onabort = () => reject(tx.error || new Error('Storage full?'));
-    });
+    return {
+      put: (id, blob) => run('readwrite', s => s.put(blob, id)),
+      get: id => run('readonly', s => s.get(id)).then(b => b || null),
+      del: id => run('readwrite', s => s.delete(id)),
+      keys: () => run('readonly', s => s.getAllKeys()),
+    };
   }
-
-  const put = (id, blob) => run('readwrite', s => s.put(blob, id));
-  const get = id => run('readonly', s => s.get(id)).then(b => b || null);
-  const del = id => run('readwrite', s => s.delete(id));
-  const keys = () => run('readonly', s => s.getAllKeys());
 
   /** Photos get resized to at most 1600 px and saved as JPEG; PDFs stay as they are. */
   async function prepare(file) {
@@ -70,5 +76,6 @@
     });
   }
 
-  root.FileStore = { put, get, del, keys, prepare, blobToBase64, blobToDataUrl };
+  // The house attachments; personal ones live in a database of their own (see app.js).
+  root.FileStore = { ...named('housecost-files'), named, prepare, blobToBase64, blobToDataUrl };
 })(window);

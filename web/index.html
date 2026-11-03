@@ -135,6 +135,35 @@
       </div>
       <button type="button" class="danger" id="sReset" data-i18n="set.reset">Delete all data</button>
     </section>
+    <!-- Personal: only on this device; never synced, never in the house file or backup -->
+    <section id="tab-personal" class="tab">
+      <div class="card hint" data-i18n-html="p.private">🔒 <b>Only on this device.</b></div>
+      <div class="hero">
+        <div>
+          <span class="hero-label" data-i18n="p.spent">I spent this month</span>
+          <b id="pTotal" class="hero-total"></b>
+          <span id="pSub" class="hero-sub"></span>
+        </div>
+      </div>
+      <div id="pCatBar" class="cat-bar"></div>
+      <div id="pCatLegend" class="cat-legend"></div>
+      <div id="pTotals" class="totals two"></div>
+      <div id="pPeople"></div>
+      <h2 data-i18n="p.entries">This month</h2>
+      <div id="pList"></div>
+      <h2 data-i18n="p.backupTitle">Personal backup</h2>
+      <div class="card form">
+        <p class="muted" data-i18n="p.backupIntro">One file with all personal entries, photos and PDFs.</p>
+        <div class="row wrap">
+          <button type="button" id="pSave" data-i18n="p.saveFile">Save backup file</button>
+          <button type="button" id="pLoad" data-i18n="p.loadFile">Restore from file</button>
+          <input type="file" id="pInput" accept=".json,application/json" class="hidden">
+        </div>
+        <p id="pMsg" class="muted"></p>
+      </div>
+      <button type="button" class="danger" id="pReset" data-i18n="p.reset">Delete all personal data</button>
+      <datalist id="pNames"></datalist>
+    </section>
   </main>
 
   <!-- Add / edit sheet -->
@@ -185,11 +214,56 @@
     </div>
   </div>
 
+  <!-- Personal add / edit sheet -->
+  <div id="pSheet" class="sheet" aria-hidden="true">
+    <div class="sheet-panel">
+      <div class="sheet-head">
+        <button type="button" class="icon-btn" id="pClose" aria-label="Close" data-i18n-aria="sheet.close">✕</button>
+        <h2 id="pSheetTitle" data-i18n="p.sheetNew">New personal entry</h2>
+        <span class="icon-btn-space"></span>
+      </div>
+      <form id="pForm" class="form" autocomplete="off">
+        <input id="pAmount" class="amount-input" inputmode="decimal" placeholder="0.00" aria-label="Amount" data-i18n-aria="f.amount">
+        <div id="pCats" class="cat-pick"></div>
+        <label><span data-i18n="p.f.title">What for</span>
+          <input id="pTitle" maxlength="60" placeholder="Lunch, bus card, phone bill…" data-i18n-ph="p.f.titlePh">
+        </label>
+        <label><span data-i18n="f.date">Date</span>
+          <input id="pDate" type="date">
+        </label>
+        <label><span data-i18n="f.note">Details / comment (optional)</span>
+          <textarea id="pNote" rows="2" maxlength="500" placeholder="Anything to remember" data-i18n-ph="p.f.notePh"></textarea>
+        </label>
+        <div class="attach">
+          <div class="attach-head"><span data-i18n="f.files">Receipts, photos, PDFs</span>
+            <button type="button" class="link" id="pAddFile" data-i18n="f.addFile">＋ Add file</button></div>
+          <div id="pFiles" class="file-list"></div>
+          <input type="file" id="pFileInput" accept="image/*,application/pdf" multiple class="hidden">
+        </div>
+        <fieldset>
+          <legend><span data-i18n="p.f.split">Split with others</span></legend>
+          <label class="check inline"><input type="checkbox" id="pSplit"> <span data-i18n="p.f.splitOn">Split this with friends or family</span></label>
+          <div id="pSplitBox" class="hidden">
+            <div id="pRows" class="shares-pick"></div>
+            <button type="button" class="link" id="pAddPerson" data-i18n="p.f.addPerson">＋ Add person</button>
+            <label><span data-i18n="f.payer">Who paid</span>
+              <select id="pPayer"></select>
+            </label>
+            <label class="check inline"><input type="checkbox" id="pCustom"> <span data-i18n="f.custom">Custom amounts</span></label>
+            <p id="pPreview" class="muted"></p>
+          </div>
+        </fieldset>
+        <p id="pError" class="error"></p>
+        <button class="primary big" type="submit" id="pSubmit" data-i18n="p.save">Save</button>
+      </form>
+    </div>
+  </div>
   <button id="fab" class="fab" aria-label="Add expense" data-i18n-aria="fab">＋</button>
 
   <nav class="tabs">
     <button data-tab="home" class="active"><span class="ic">◔</span><span data-i18n="tab.home">Home</span></button>
     <button data-tab="balances"><span class="ic">⇄</span><span data-i18n="tab.balances">Balances</span></button>
+    <button data-tab="personal"><span class="ic">🔒</span><span data-i18n="tab.personal">Personal</span></button>
     <button data-tab="people"><span class="ic">☺</span><span data-i18n="tab.people">People</span></button>
   </nav>
 
@@ -251,6 +325,7 @@
   <script src="house-key.js"></script>
   <script src="export.js"></script>
   <script src="file-store.js"></script>
+  <script src="personal.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

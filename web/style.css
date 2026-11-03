@@ -290,7 +290,7 @@ tr:last-child td { border-bottom: none; }
 /* ---------- tabs ---------- */
 .tabs {
   position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(10px + env(safe-area-inset-bottom)); z-index: 5;
-  display: grid; grid-template-columns: repeat(3, 1fr); width: min(420px, calc(100% - 24px));
+  display: grid; grid-template-columns: repeat(4, 1fr); width: min(440px, calc(100% - 24px));
   background: color-mix(in srgb, var(--card) 92%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
   border-radius: 22px; box-shadow: 0 6px 24px rgba(17, 24, 39, .14); border: 1px solid var(--line); padding: 4px;
 }
@@ -324,3 +324,11 @@ dialog h3 { margin: 0 0 12px; font-size: 18px; }
 .view-head { align-items: center; margin-bottom: 10px; }
 .view-head b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .view-body img { display: block; max-width: 100%; max-height: 65vh; margin: 0 auto; border-radius: 12px; }
+
+/* Personal tab */
+.totals.two { grid-template-columns: repeat(2, 1fr); }
+.exp-amt small { display: block; }
+.person .grow span { display: block; font-size: 13px; }
+.prow { gap: 8px; }
+.prow .pname { flex: 1; min-width: 0; }
+.prow .x { background: none; border: 0; padding: 4px 6px; color: var(--muted, #888); font-size: 16px; }
