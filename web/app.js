@@ -789,13 +789,24 @@
   });
 
   // ---------- people + settings ----------
+  const PEN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4"/></svg>';
+  const BIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/></svg>';
+
+  /** One roster card: who lives here, where each one stands, quick actions. */
   function renderPeople() {
-    $('peopleList').innerHTML = state.people.length ? state.people.map(p => `<div class="card person">
+    const net = Object.fromEntries(H.summary(state).map(r => [r.person.id, r.net]));
+    $('peopleList').innerHTML = state.people.length ? state.people.map(p => {
+      const n = net[p.id] || 0;
+      const stand = n < 0 ? `<span class="neg">${T('ppl.owes', { amt: money(-n) })}</span>`
+        : n > 0 ? `<span class="pos">${T('ppl.owed', { amt: money(n) })}</span>`
+        : `<span>${T('ppl.settled')}</span>`;
+      return `<div class="person${isMe(p.id) ? ' me' : ''}">
         ${avatar(p)}
-        <div class="grow"><b>${esc(p.name)}</b>${isMe(p.id) ? `<span class="muted">${T('ppl.thisIsYou')}</span>` : ''}</div>
-        ${isMe(p.id) ? '' : `<button class="small" data-me="${p.id}">${T('ppl.thisIsMe')}</button>`}
-        <button class="small" data-rename="${p.id}">${T('ppl.rename')}</button>
-        <button class="small" data-remove="${p.id}" aria-label="${T('ppl.remove')}">✕</button></div>`).join('')
+        <div class="grow"><b>${esc(p.name)}${isMe(p.id) ? ` <span class="you-pill" title="${T('ppl.thisIsYou')}">${T('ppl.you')}</span>` : ''}</b>
+          <small>${stand}${isMe(p.id) ? '' : `<button class="link" data-me="${p.id}">${T('ppl.thisIsMe')}</button>`}</small></div>
+        <button class="icon" data-rename="${p.id}" aria-label="${T('ppl.rename')}" title="${T('ppl.rename')}">${PEN}</button>
+        <button class="icon" data-remove="${p.id}" aria-label="${T('ppl.remove')}" title="${T('ppl.remove')}">${BIN}</button></div>`;
+    }).join('')
       : `<div class="empty">${T('ppl.nobody')}</div>`;
     if (document.activeElement !== $('sCurrency')) $('sCurrency').value = state.currency;
   }
@@ -1019,6 +1030,8 @@
     $('ghToken').placeholder = connected ? T('gh.tokenSaved') : 'github_pat_…';
     $('ghAuto').checked = !!(cfg && cfg.auto);
     $('ghSave').textContent = T(connected ? 'gh.save' : 'gh.connect');
+    if (connected !== renderSyncUi.wasConnected) $('ghSetup').open = !connected; // folded once set up
+    renderSyncUi.wasConnected = connected;
     $('ghSyncNow').classList.toggle('hidden', !connected);
     $('ghForget').classList.toggle('hidden', !connected);
     const gh = ghClient();
