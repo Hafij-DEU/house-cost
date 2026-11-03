@@ -204,6 +204,21 @@
     </form>
   </dialog>
 
+  <dialog id="unlockDlg">
+    <form method="dialog" id="unlockForm">
+      <h3 data-i18n="unlock.title">Join the house</h3>
+      <p class="muted" data-i18n="unlock.body">This app came with the house's sync settings. Enter the house password once to turn on sync.</p>
+      <label><span data-i18n="unlock.pass">House password</span>
+        <input id="uPass" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" required>
+      </label>
+      <p class="error" id="uError"></p>
+      <div class="row dlg-actions">
+        <button type="button" class="grow" id="uLater" data-i18n="unlock.later">Not now</button>
+        <button value="ok" class="primary grow" id="uOk" data-i18n="unlock.ok">Unlock</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog id="shareDlg">
     <form method="dialog">
       <h3 id="shTitle"></h3>
@@ -233,6 +248,7 @@
   <script src="i18n.js"></script>
   <script src="logic.js"></script>
   <script src="gh-sync.js"></script>
+  <script src="house-key.js"></script>
   <script src="export.js"></script>
   <script src="file-store.js"></script>
   <script src="app.js"></script>

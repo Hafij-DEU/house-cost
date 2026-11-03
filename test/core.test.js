@@ -197,3 +197,23 @@ test('gh files: upload once, download bytes, delete', async () => {
   assert.equal(await c.deleteFile('files/a.jpg', 'x'), true);
   assert.equal(await c.deleteFile('files/a.jpg', 'x'), false);
 });
+
+test('a restored backup survives the next sync', () => {
+  const { s, a, b } = house();
+  s.expenses.push(H.makeExpense({ title: 'Gas', amount: 900, payerId: a.id, shareIds: [a.id, b.id], date: '2026-11-02', category: 'gas' }));
+  const backup = clone(s);
+  const phone = clone(s);
+  // Another phone deletes everything after the backup was made.
+  for (const e of [...phone.expenses]) H.removeExpense(phone, e.id);
+  H.merge(s, phone);
+  assert.equal(s.expenses.length, 0);
+  // Without reviveAll the old backup loses against the newer tombstone.
+  const stale = H.validateState(clone(backup));
+  H.merge(stale, phone);
+  assert.equal(stale.expenses.length, 0);
+  const restored = H.reviveAll(H.validateState(clone(backup)));
+  H.merge(restored, phone);
+  assert.equal(restored.expenses.length, backup.expenses.length);
+  H.merge(phone, restored);
+  assert.equal(phone.expenses.length, backup.expenses.length);
+});

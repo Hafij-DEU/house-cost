@@ -144,6 +144,11 @@
     'st.waiting': { one: '1 change waiting', other: '{n} changes waiting' },
     'st.allSynced': 'all synced', 'st.offline': 'offline',
     'gs.401': 'Token not accepted (expired or wrong).', 'gs.404': 'Repo not found, or the token has no access to it.',
+    'gs.public': '{repo} is a public repo, so anyone could read your household data. Use a private repo.',
+    'unlock.title': 'Join the house', 'unlock.body': "This app came with the house's sync settings. Enter the house password once to turn on sync.",
+    'unlock.pass': 'House password', 'unlock.ok': 'Unlock', 'unlock.later': 'Not now',
+    'unlock.checking': 'Checking…', 'unlock.wrong': 'Wrong password. Try again.', 'unlock.done': 'Sync is on. Getting the house data…',
+    'unlock.whoTitle': 'Which one are you?', 'unlock.whoOk': 'This is me',
     'gs.403': 'Token may not write here (needs Contents: read and write).', 'gs.busy': 'Another device kept saving at the same time; try again.',
 
     'cat.groceries': 'Groceries', 'cat.gas': 'Gas', 'cat.electricity': 'Electricity', 'cat.water': 'Water',
@@ -296,6 +301,11 @@
     'st.waiting': '{n} değişiklik bekliyor',
     'st.allSynced': 'hepsi eşitlendi', 'st.offline': 'çevrimdışı',
     'gs.401': 'Anahtar kabul edilmedi (süresi dolmuş ya da yanlış).', 'gs.404': 'Depo bulunamadı ya da anahtarın depoya erişimi yok.',
+    'gs.public': '{repo} herkese açık bir depo; ev verilerinizi herkes okuyabilir. Gizli (private) bir depo kullanın.',
+    'unlock.title': 'Eve katıl', 'unlock.body': 'Bu uygulama evin eşitleme ayarlarıyla geldi. Eşitlemeyi açmak için ev şifresini bir kez girin.',
+    'unlock.pass': 'Ev şifresi', 'unlock.ok': 'Kilidi aç', 'unlock.later': 'Şimdi değil',
+    'unlock.checking': 'Kontrol ediliyor…', 'unlock.wrong': 'Yanlış şifre. Yeniden deneyin.', 'unlock.done': 'Eşitleme açık. Ev verileri alınıyor…',
+    'unlock.whoTitle': 'Hangisi sizsiniz?', 'unlock.whoOk': 'Bu benim',
     'gs.403': 'Anahtar buraya yazamıyor (Contents: Read and write izni gerekli).', 'gs.busy': 'Başka bir cihaz aynı anda kaydetmeye devam etti; yeniden deneyin.',
 
     'cat.groceries': 'Market', 'cat.gas': 'Tüp / doğalgaz', 'cat.electricity': 'Elektrik', 'cat.water': 'Su',

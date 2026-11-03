@@ -135,8 +135,16 @@
       return true;
     }
 
+    /** True when the repo is private; the shared file must never land in a public repo. */
+    async function isPrivate() {
+      const res = await doFetch(`${api}/repos/${encodeURIComponent(cfg.owner)}/${encodeURIComponent(cfg.repo)}`,
+        { headers: headers(), cache: 'no-store' });
+      if (!res.ok) return fail(res);
+      return (await res.json()).private === true;
+    }
+
     const historyUrl = `https://github.com/${cfg.owner}/${cfg.repo}/commits/${cfg.branch || 'HEAD'}/${cfg.path}`;
-    return { pull, push, putFile, getFile, deleteFile, historyUrl };
+    return { pull, push, putFile, getFile, deleteFile, isPrivate, historyUrl };
   }
 
   /**

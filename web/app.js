@@ -848,7 +848,8 @@
       const data = H.validateState(JSON.parse($('sBackup').value));
       if (!await ask(T('bk.restoreQ'), `<p>${T('bk.restoreBody', { people: T('n.person', { n: data.people.length }), expenses: T('n.expense', { n: data.expenses.length }) })}</p>`, T('set.restore'))) return;
       data.deviceId = state.deviceId;
-      state = data;
+      data.gone = data.gone || {};
+      state = H.reviveAll(data); // else the next sync deletes it again
       $('sBackup').value = '';
       $('sMsg').textContent = T('bk.restored');
       formPeopleKey = '';
@@ -921,7 +922,7 @@
     return (who ? who + ': ' : '') + head + (log.length > 1 ? '\n\n' + log.map(l => '- ' + l).join('\n') : '');
   }
 
-  let syncing = null, autoTimer = null, syncError = '';
+  let syncing = null, autoTimer = null, syncError = '', checkedPrivate = '';
   function scheduleAutoSync() {
     clearTimeout(autoTimer);
     autoTimer = setTimeout(() => syncNow(false), 4000);
@@ -948,6 +949,12 @@
     const s = state;
     const pendingBefore = sync.pending, logBefore = sync.log.length;
     try {
+      // 0. Household data never goes to a public repo (checked once per repo per run).
+      const cfg = ghCfg();
+      if (checkedPrivate !== cfg.repo) {
+        if (!await gh.isPrivate()) throw new Error(T('gs.public', { repo: cfg.repo }));
+        checkedPrivate = cfg.repo;
+      }
       // 1. Attachments first, so the data file never points at bytes that are not there.
       const up = new Set(sync.uploaded);
       for (const f of s.files) {
@@ -1061,6 +1068,66 @@
     if (e.key === KEY) { state = load(); formPeopleKey = ''; render(); }
   });
 
+  // ---------- house key (first start of an APK sent by a housemate) ----------
+  /** The bundled, password-sealed sync settings; null when this build has none. */
+  async function bundledHouseKey() {
+    try {
+      const res = await fetch('house-key.json', { cache: 'no-store' });
+      return res.ok ? await res.json() : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  async function offerUnlock() {
+    if (ghCfg()) return;
+    const sealed = await bundledHouseKey();
+    if (!sealed) return;
+    const dlg = $('unlockDlg');
+    $('uPass').value = '';
+    $('uError').textContent = '';
+    dlg.showModal();
+    $('uPass').focus();
+  }
+
+  $('unlockForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = $('uOk');
+    btn.disabled = true;
+    $('uError').textContent = T('unlock.checking');
+    try {
+      const settings = await window.HouseKey.open(await bundledHouseKey(), $('uPass').value);
+      if (!settings) { $('uError').textContent = T('unlock.wrong'); $('uPass').select(); return; }
+      localStorage.setItem(GH_KEY, JSON.stringify({ repo: settings.repo, token: settings.token, auto: true }));
+      sync.uploaded = [];
+      storeSync();
+      syncError = '';
+      $('unlockDlg').close();
+      toast(T('unlock.done'));
+      await syncNow(true);
+      await pickMe();
+    } catch (err) {
+      $('uError').textContent = err.message || String(err);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  $('uLater').addEventListener('click', () => $('unlockDlg').close()); // asked again on the next start
+
+  /** After joining: ask which person this phone belongs to (kept on this device only). */
+  async function pickMe() {
+    if (!state.people.length || state.people.some(p => p.id === state.meId)) return;
+    const body = '<div class="pick-me">' + state.people.map((p, i) =>
+      `<label class="check"><input type="radio" name="pickMe" value="${esc(p.id)}"${i ? '' : ' checked'}> <span>${esc(p.name)}</span></label>`).join('') + '</div>';
+    if (!await ask(T('unlock.whoTitle'), body, T('unlock.whoOk'))) return;
+    const picked = document.querySelector('input[name="pickMe"]:checked');
+    if (!picked) return;
+    state.meId = picked.value;
+    store();
+    render();
+  }
+
   // ---------- language ----------
   /** Static text from data-i18n attributes; the rest comes from render(). */
   function applyLang() {
@@ -1086,4 +1153,5 @@
   showTab(state.people.length < 2 ? 'people' : 'home');
   render();
   if ((ghCfg() || {}).auto) syncNow(false);
+  else offerUnlock();
 })();

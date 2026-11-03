@@ -118,6 +118,7 @@ fieldset { border: 1px solid var(--line); border-radius: 14px; padding: 8px 12px
 legend { font-size: 13px; color: var(--muted); padding: 0 4px; display: flex; gap: 8px; align-items: center; }
 .check { display: flex !important; align-items: center; gap: 10px; color: var(--text) !important; margin: 8px 0 !important; }
 .check input[type=checkbox] { width: 20px; height: 20px; margin: 0; flex: none; accent-color: var(--brand); }
+.check input[type=radio] { width: 20px; height: 20px; margin: 0; flex: none; accent-color: var(--brand); }
 .check input.amt { width: 110px; padding: 7px 9px; margin: 0; }
 .inline { font-size: 13px; color: var(--muted) !important; }
 details { margin: 4px 0 10px; }

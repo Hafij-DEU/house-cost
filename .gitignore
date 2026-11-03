@@ -6,3 +6,6 @@ android/app/build/
 *.apk
 *.jks
 *.env
+
+# Sealed sync settings for privately sent APKs (tools/make-house-key.mjs)
+web/house-key.json

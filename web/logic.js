@@ -117,6 +117,18 @@
     state.gone[id] = now();
   }
 
+  /**
+   * Marks every record as edited now and drops their tombstones, so restored
+   * data wins over the deletes and edits other phones made since the backup.
+   */
+  function reviveAll(state) {
+    for (const x of [...state.people, ...state.expenses, ...(state.files || [])]) {
+      x.updatedAt = now();
+      delete state.gone[x.id];
+    }
+    return state;
+  }
+
   /** Deletes an expense together with its attached files. */
   function removeExpense(state, id) {
     removeRecord(state, 'expenses', id);
@@ -386,7 +398,7 @@
 
   const api = {
     CATEGORIES, categoryOf, now, uid, today, emptyState, parseAmount, formatMoney, splitEqual, makeExpense,
-    addPerson, renamePerson, removeRecord, removeExpense, addFile, filesOf, setCurrency, personUsed,
+    addPerson, renamePerson, removeRecord, reviveAll, removeExpense, addFile, filesOf, setCurrency, personUsed,
     setSharePaid, settlePair, summary, pairDebts, openShares, monthReport, merge, sameShared,
     exportShared, validateState,
   };
