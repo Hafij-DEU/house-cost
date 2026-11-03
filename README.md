@@ -27,13 +27,16 @@ Android: `cd android && gradle assembleRelease` (set `HOUSECOST_KEYSTORE`, `HOUS
    token works and the repo is private, and writes `web/house-key.json`.
 2. Build the APK (`gradle assembleRelease` in `android/`). The sealed file goes
    inside it.
-3. Send that APK to the housemates privately (chat, MeshDrop). On first start
-   it asks for the house password, turns auto sync on and asks who they are.
+3. Send that APK to the housemates. On first start it asks for the house
+   password, turns auto sync on and asks who they are.
+4. For the web app, store the same file as the repo secret `HOUSE_KEY_JSON`
+   (`gh secret set HOUSE_KEY_JSON < web/house-key.json`) and rerun the Pages
+   workflow. The site then asks for the house password on a first visit.
 
-`web/house-key.json` is gitignored, so it is never in the public repo, the web
-app or the GitHub releases. Never upload an APK that contains it: anyone with
-the file can try passwords offline, and a short one falls quickly. To lock a
-phone out, revoke the token on GitHub and make a new key.
+`web/house-key.json` is gitignored, so it is never in git. An APK or site that
+carries it can be tried offline against passwords, and a short one falls
+quickly, so use a long house password when the APK or site is public. To lock
+everyone out, revoke the token on GitHub and make a new key.
 
 The app refuses to sync to a public repo.
 

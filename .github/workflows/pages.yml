@@ -27,6 +27,12 @@ jobs:
         with:
           node-version: 22
       - run: node --test test/*.test.js
+      # The house key (data repo + token sealed with the house password) lives
+      # in a repo secret, never in git; the site asks for the password on first visit.
+      - name: Add the house key
+        env:
+          HOUSE_KEY_JSON: ${{ secrets.HOUSE_KEY_JSON }}
+        run: if [ -n "$HOUSE_KEY_JSON" ]; then printf '%s\n' "$HOUSE_KEY_JSON" > web/house-key.json; fi
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
