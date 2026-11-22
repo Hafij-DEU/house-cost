@@ -315,12 +315,64 @@
   }
 
   /**
+   * Puts back every person an expense still points at (payer or share) but who
+   * is missing from `state.people`: a remove on one phone loses to an expense
+   * added for that person offline on another, so the data never ends up with
+   * an expense whose payer does not exist. The record comes from `pool` (any
+   * copy of the person seen, e.g. before a merge dropped it), else a placeholder.
+   * Restored people are marked edited now, so the restore reaches the other
+   * devices too. Returns how many were put back.
+   */
+  function restorePeople(state, pool) {
+    if (!state || !Array.isArray(state.people) || !Array.isArray(state.expenses)) return 0;
+    if (!state.gone || typeof state.gone !== 'object') state.gone = {};
+    const have = new Set(state.people.map(p => p && p.id));
+    const known = new Map();
+    for (const p of pool || []) if (p && typeof p.id === 'string' && typeof p.name === 'string') known.set(p.id, p);
+    let n = 0;
+    const put = id => {
+      if (typeof id !== 'string' || have.has(id)) return;
+      have.add(id);
+      let person;
+      if (known.has(id)) person = JSON.parse(JSON.stringify(known.get(id)));
+      else {
+        const base = say('person.restored', 'Restored person');
+        let name = base;
+        for (let i = 2; state.people.some(p => p.name && p.name.toLowerCase() === name.toLowerCase()); i++) name = base + ' ' + i;
+        person = { id, name };
+      }
+      person.updatedAt = now();
+      delete state.gone[id];
+      state.people.push(person);
+      n++;
+    };
+    for (const e of state.expenses) {
+      if (!e) continue;
+      put(e.payerId);
+      if (Array.isArray(e.shares)) for (const sh of e.shares) if (sh) put(sh.personId);
+    }
+    return n;
+  }
+
+  /**
+   * Fixes what restorePeople can fix in a saved state or a sync/export file
+   * (in place) and returns it; anything else is left for validateState to reject.
+   */
+  function repairState(data, pool) {
+    if (data && typeof data === 'object' && Array.isArray(data.people) && Array.isArray(data.expenses)) {
+      restorePeople(data, [...(pool || []), ...data.people]);
+    }
+    return data;
+  }
+
+  /**
    * Merges another device's copy into `state` (in place). meId and deviceId
    * stay local: each phone knows who its own owner is. Returns true when
    * anything changed.
    */
   function merge(state, other) {
     const before = fingerprint(state);
+    const seen = [...(other.people || []), ...state.people];
     const gone = { ...state.gone };
     for (const [id, at] of Object.entries(other.gone || {})) gone[id] = Math.max(gone[id] || 0, at);
     state.gone = gone;
@@ -329,6 +381,8 @@
     state.expenses = mergeList(state.expenses, other.expenses || [], gone, mergeExpense);
     state.files = mergeList(state.files || [], other.files || [], gone,
       (a, b) => JSON.parse(JSON.stringify((b.updatedAt || 0) > (a.updatedAt || 0) ? b : a)));
+    // Someone removed on one phone but still used by an expense: the removal loses.
+    restorePeople(state, seen);
     if ((other.currencyAt || 0) > (state.currencyAt || 0)) {
       state.currency = other.currency;
       state.currencyAt = other.currencyAt;
@@ -400,7 +454,7 @@
     CATEGORIES, categoryOf, now, uid, today, emptyState, parseAmount, formatMoney, splitEqual, makeExpense,
     addPerson, renamePerson, removeRecord, reviveAll, removeExpense, addFile, filesOf, setCurrency, personUsed,
     setSharePaid, settlePair, summary, pairDebts, openShares, monthReport, merge, sameShared,
-    exportShared, validateState,
+    exportShared, validateState, restorePeople, repairState,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.HouseCost = api;

@@ -157,11 +157,16 @@
       const { data, sha } = await gh.pull();
       let pulledChanges = false;
       if (data) {
-        H.validateState(JSON.parse(JSON.stringify(data)));
-        pulledChanges = H.merge(state, data);
+        // A file an older version pushed with an expense for a removed person is repaired, not
+        // rejected forever (that stopped sync on every device).
+        const incoming = H.repairState ? H.repairState(JSON.parse(JSON.stringify(data)), state.people) : data;
+        H.validateState(JSON.parse(JSON.stringify(incoming)));
+        pulledChanges = H.merge(state, incoming);
       }
       const out = H.exportShared(state);
       if (data && H.sameShared(out, data)) return { pulledChanges, pushed: false };
+      // Never publish a state the other devices would refuse to read.
+      H.validateState(JSON.parse(JSON.stringify(out)));
       try {
         await gh.push(out, sha, message || 'House Cost update');
         return { pulledChanges, pushed: true };

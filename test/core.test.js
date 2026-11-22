@@ -217,3 +217,48 @@ test('a restored backup survives the next sync', () => {
   H.merge(phone, restored);
   assert.equal(phone.expenses.length, backup.expenses.length);
 });
+
+test('merge: removing a person on one phone loses to an offline expense for them on another', () => {
+  const { s: base, a, c } = house();
+  const devA = clone(base), devB = clone(base);
+  assert.equal(H.personUsed(devA, c.id), false);
+  H.removeRecord(devA, 'people', c.id);
+  devB.expenses.push(H.makeExpense({ title: 'Milk', amount: 1000, payerId: c.id, shareIds: [a.id, c.id], date: '2026-11-05' }));
+  H.merge(devA, clone(H.exportShared(devB)));
+  assert.ok(devA.people.some(p => p.id === c.id && p.name === 'Sami'), 'Sami is back on A');
+  H.validateState(clone(devA));
+  H.merge(devB, clone(H.exportShared(devA)));
+  assert.ok(devB.people.some(p => p.id === c.id), 'B keeps Sami too');
+  H.validateState(clone(devB));
+  assert.ok(H.sameShared(H.exportShared(devA), H.exportShared(devB)));
+});
+
+test('repairState fixes a file an older version saved with a missing payer', () => {
+  const { s, a, c } = house();
+  s.expenses.push(H.makeExpense({ title: 'Milk', amount: 1000, payerId: c.id, shareIds: [a.id, c.id], date: '2026-11-05' }));
+  const broken = clone(s);
+  broken.people = broken.people.filter(p => p.id !== c.id);
+  assert.throws(() => H.validateState(clone(broken)));
+  const fixed = H.validateState(H.repairState(clone(broken), s.people));
+  assert.equal(fixed.people.find(p => p.id === c.id).name, 'Sami');
+  const anon = H.validateState(H.repairState(clone(broken)));
+  assert.equal(anon.people.find(p => p.id === c.id).name, 'Restored person');
+  assert.equal(anon.expenses.length, 1);
+});
+
+test('gh sync: a broken remote file is repaired instead of stopping sync', async () => {
+  const gh = mockGithub();
+  const cfg = { owner: 'o', repo: 'r', path: 'house-cost.json', token: 't', api: 'https://api.test' };
+  const c1 = G.client(cfg, gh.fetchImpl);
+  const { s, a, c } = house();
+  s.expenses.push(H.makeExpense({ title: 'Milk', amount: 1000, payerId: c.id, shareIds: [a.id, c.id], date: '2026-11-05' }));
+  const remote = H.exportShared(s);
+  remote.people = remote.people.filter(p => p.id !== c.id);
+  gh.files.set('house-cost.json', { content: Buffer.from(JSON.stringify(remote)).toString('base64'), sha: 's0' });
+  const dev = H.emptyState();
+  const r = await G.syncRound(c1, H, dev, 'm');
+  assert.equal(r.pushed, true);
+  H.validateState(clone(dev));
+  const pushed = JSON.parse(Buffer.from(gh.files.get('house-cost.json').content, 'base64').toString());
+  H.validateState(pushed);
+});

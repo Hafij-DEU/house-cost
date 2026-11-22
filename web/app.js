@@ -20,13 +20,29 @@
 
   // ---------- storage ----------
   function load() {
+    let raw = null;
     try {
-      const raw = localStorage.getItem(KEY);
-      if (raw) return H.validateState(JSON.parse(raw));
+      raw = localStorage.getItem(KEY);
+      // repairState puts back people that expenses still use (older versions could save that).
+      if (raw) return H.validateState(H.repairState(JSON.parse(raw)));
     } catch (e) {
       console.error('Could not load saved data', e);
+      if (raw) keepBroken(raw, e);
     }
     return H.emptyState();
+  }
+
+  /**
+   * Saved data that cannot be read is never thrown away: a copy goes to its own
+   * key before anything new is saved over it, and the user is told.
+   */
+  function keepBroken(raw, err) {
+    try {
+      if (localStorage.getItem(KEY + '.broken') !== raw) localStorage.setItem(KEY + '.broken', raw);
+    } catch (e2) {
+      console.error('Could not keep a copy of the unreadable data', e2);
+    }
+    setTimeout(() => { try { toast(T('err.loadBroken', { msg: err.message })); } catch (e3) { /* no UI yet */ } }, 800);
   }
 
   function store() {
@@ -908,8 +924,9 @@
     if (!file) return;
     try {
       const text = await file.text();
-      H.validateState(JSON.parse(text));
-      const changed = H.merge(state, JSON.parse(text));
+      const incoming = H.repairState(JSON.parse(text), state.people);
+      H.validateState(JSON.parse(JSON.stringify(incoming)));
+      const changed = H.merge(state, incoming);
       formPeopleKey = '';
       if (changed) save(T('log.merged', { name: file.name }));
       $('fileMsg').textContent = T(changed ? 'file.merged' : 'file.nothingNew', { name: file.name });
