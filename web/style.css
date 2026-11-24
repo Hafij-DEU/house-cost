@@ -372,3 +372,14 @@ dialog h3 { margin: 0 0 12px; font-size: 18px; }
 .prow { gap: 8px; }
 .prow .pname { flex: 1; min-width: 0; }
 .prow .x { background: none; border: 0; padding: 4px 6px; color: var(--muted, #888); font-size: 16px; }
+
+/* Where to send the money: full name + IBAN of the person who paid. */
+.pay-to { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px 10px; margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: var(--brand-soft); }
+.pay-to .pay-label { grid-column: 1 / -1; font-size: 12px; color: var(--muted); }
+.pay-to .pay-val { overflow-wrap: anywhere; }
+.pay-to b { font-size: 14px; }
+.pay-to .iban, .bank-line .iban { font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+.pay-to .iban { font-size: 14px; }
+.pay-to.none { display: block; background: var(--bg); color: var(--muted); font-size: 13px; }
+.debt-body .pay-to { margin: 10px 0 4px; }
+.roster .person .grow small.bank-line { display: block; margin-top: 2px; }

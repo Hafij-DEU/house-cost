@@ -262,3 +262,25 @@ test('gh sync: a broken remote file is repaired instead of stopping sync', async
   const pushed = JSON.parse(Buffer.from(gh.files.get('house-cost.json').content, 'base64').toString());
   H.validateState(pushed);
 });
+
+test('pay info: IBAN is checked, cleaned, grouped and synced', () => {
+  const { s, b } = house();
+  assert.ok(H.ibanValid('TR33 0006 1005 1978 6457 8413 26'));
+  assert.ok(H.ibanValid('de89370400440532013000'));
+  assert.ok(!H.ibanValid('TR33 0006 1005 1978 6457 8413 27'));
+  assert.ok(!H.ibanValid('12345'));
+  assert.ok(H.setPayInfo(s, b.id, 'Rakib Hasan', 'TR12 3456').error);
+  assert.equal(b.iban, undefined);
+  const res = H.setPayInfo(s, b.id, '  Rakib Hasan ', 'tr33 0006 1005 1978 6457 8413 26');
+  assert.equal(res.person.fullName, 'Rakib Hasan');
+  assert.equal(b.iban, 'TR330006100519786457841326');
+  assert.equal(H.formatIban(b.iban), 'TR33 0006 1005 1978 6457 8413 26');
+  const other = clone(s);
+  other.people.find(p => p.id === b.id).updatedAt -= 10;
+  delete other.people.find(p => p.id === b.id).iban;
+  H.merge(other, s);
+  assert.equal(other.people.find(p => p.id === b.id).iban, 'TR330006100519786457841326');
+  H.setPayInfo(s, b.id, '', '');
+  assert.equal(b.fullName, undefined);
+  assert.equal(b.iban, undefined);
+});

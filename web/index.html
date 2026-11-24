@@ -289,6 +289,22 @@
     </form>
   </dialog>
 
+  <dialog id="bankDlg">
+    <form method="dialog" id="bankForm" class="form" autocomplete="off">
+      <h3 id="bTitle">Bank details</h3>
+      <p class="muted" data-i18n="bank.why">Shown under each expense this person paid, so the others know where to send the money.</p>
+      <label><span data-i18n="bank.fullName">Full name on the bank account</span>
+        <input id="bName" maxlength="80" autocapitalize="words"></label>
+      <label><span>IBAN</span>
+        <input id="bIban" maxlength="42" placeholder="TR00 0000 0000 0000 0000 0000 00" autocapitalize="characters" spellcheck="false" inputmode="text"></label>
+      <p id="bError" class="error"></p>
+      <div class="row dlg-actions">
+        <button value="cancel" class="grow" formnovalidate data-i18n="dlg.back">Back</button>
+        <button value="ok" class="primary grow" data-i18n="bank.save">Save</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog id="unlockDlg">
     <form method="dialog" id="unlockForm">
       <h3 data-i18n="unlock.title">Join the house</h3>

@@ -112,6 +112,37 @@
     p.updatedAt = now();
   }
 
+  /** IBAN as typed, without spaces, upper case. */
+  const cleanIban = iban => String(iban || '').replace(/\s+/g, '').toUpperCase();
+
+  /** ISO 13616 check: country, check digits, account part, and the mod-97 sum. */
+  function ibanValid(iban) {
+    const s = cleanIban(iban);
+    if (!/^[A-Z]{2}\d{2}[A-Z0-9]{10,30}$/.test(s)) return false;
+    let rest = 0;
+    for (const c of s.slice(4) + s.slice(0, 4)) {
+      const n = c >= 'A' ? String(c.charCodeAt(0) - 55) : c;
+      for (const d of n) rest = (rest * 10 + Number(d)) % 97;
+    }
+    return rest === 1;
+  }
+
+  /** Groups of four, the way banks print it. */
+  const formatIban = iban => cleanIban(iban).replace(/(.{4})(?=.)/g, '$1 ');
+
+  /** Who to send money to: full name on the bank account and IBAN. Empty values clear them. */
+  function setPayInfo(state, personId, fullName, iban) {
+    const p = state.people.find(x => x.id === personId);
+    if (!p) return {};
+    const name = String(fullName || '').trim().slice(0, 80);
+    const clean = cleanIban(iban);
+    if (clean && !ibanValid(clean)) return { error: say('err.iban', 'This IBAN does not look right. Check it again.') };
+    if (name) p.fullName = name; else delete p.fullName;
+    if (clean) p.iban = clean; else delete p.iban;
+    p.updatedAt = now();
+    return { person: p };
+  }
+
   function removeRecord(state, listName, id) {
     state[listName] = state[listName].filter(x => x.id !== id);
     state.gone[id] = now();
@@ -421,6 +452,8 @@
     const ids = new Set(data.people.map(p => p.id));
     for (const p of data.people) {
       if (typeof p.id !== 'string' || typeof p.name !== 'string') throw new Error(say('err.badPerson', 'Broken person in file.'));
+      if (p.fullName !== undefined && typeof p.fullName !== 'string') delete p.fullName;
+      if (p.iban !== undefined && typeof p.iban !== 'string') delete p.iban;
     }
     for (const e of data.expenses) {
       if (!ids.has(e.payerId) || !Array.isArray(e.shares) || !Number.isInteger(e.amount)) {
@@ -452,7 +485,7 @@
 
   const api = {
     CATEGORIES, categoryOf, now, uid, today, emptyState, parseAmount, formatMoney, splitEqual, makeExpense,
-    addPerson, renamePerson, removeRecord, reviveAll, removeExpense, addFile, filesOf, setCurrency, personUsed,
+    addPerson, renamePerson, setPayInfo, ibanValid, formatIban, removeRecord, reviveAll, removeExpense, addFile, filesOf, setCurrency, personUsed,
     setSharePaid, settlePair, summary, pairDebts, openShares, monthReport, merge, sameShared,
     exportShared, validateState, restorePeople, repairState,
   };

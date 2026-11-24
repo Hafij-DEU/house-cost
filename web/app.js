@@ -311,6 +311,7 @@
       <div class="exp-body">
         ${e.note ? `<div class="note">${esc(e.note)}</div>` : ''}
         <div class="chips">${chips}</div>
+        ${e.shares.some(s => s.personId !== e.payerId) ? payTo(e.payerId) : ''}
         ${files.length ? `<div class="thumbs">${files.map(thumb).join('')}</div>` : ''}
         <div class="stamp">${e.by ? T('card.savedBy', { name: esc(e.by) }) + ' · ' : ''}${T('card.lastChange', { ago: esc(ago(e.updatedAt)) })}</div>
         <div class="exp-actions"><button class="small" data-edit="${e.id}">${T('act.edit')}</button><button class="small" data-del="${e.id}">${T('act.delete')}</button></div>
@@ -764,6 +765,7 @@
             <input type="checkbox" data-pay="${s.expense.id}|${from}">
             <span class="grow">${H.categoryOf(s.expense.category)[2]} ${esc(s.expense.title)} <small>${prettyDate(s.expense.date, true)} · ${T('debt.total', { amt: money(s.expense.amount) })}</small></span>
             <b>${money(s.amount)}</b></label>`).join('')}
+          ${kind === 'owe' ? payTo(p.id) : ''}
           <p class="muted">${T(kind === 'owe' ? 'debt.tickOwe' : 'debt.tickOwed')}</p>
           <div class="debt-foot"><button class="small primary" data-settle="${from}|${to}" data-oneway="1">${allText}</button></div>
         </div></div>`;
@@ -806,6 +808,7 @@
 
   // ---------- people + settings ----------
   const PEN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4"/></svg>';
+  const CARD = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v12H3zM3 10h18M7 15h4"/></svg>';
   const BIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/></svg>';
 
   /** One roster card: who lives here, where each one stands, quick actions. */
@@ -819,7 +822,9 @@
       return `<div class="person${isMe(p.id) ? ' me' : ''}">
         ${avatar(p)}
         <div class="grow"><b>${esc(p.name)}${isMe(p.id) ? ` <span class="you-pill" title="${T('ppl.thisIsYou')}">${T('ppl.you')}</span>` : ''}</b>
-          <small>${stand}${isMe(p.id) ? '' : `<button class="link" data-me="${p.id}">${T('ppl.thisIsMe')}</button>`}</small></div>
+          <small>${stand}${isMe(p.id) ? '' : `<button class="link" data-me="${p.id}">${T('ppl.thisIsMe')}</button>`}</small>
+          ${p.iban ? `<small class="bank-line">${esc(p.fullName || p.name)} · <span class="iban">${esc(H.formatIban(p.iban))}</span></small>` : ''}</div>
+        <button class="icon" data-bank="${p.id}" aria-label="${T('bank.edit')}" title="${T('bank.edit')}">${CARD}</button>
         <button class="icon" data-rename="${p.id}" aria-label="${T('ppl.rename')}" title="${T('ppl.rename')}">${PEN}</button>
         <button class="icon" data-remove="${p.id}" aria-label="${T('ppl.remove')}" title="${T('ppl.remove')}">${BIN}</button></div>`;
     }).join('')
@@ -840,6 +845,8 @@
   $('peopleList').addEventListener('click', async e => {
     const me = e.target.closest('[data-me]');
     if (me) { state.meId = me.dataset.me; store(); render(); return; } // local only, not synced
+    const bk = e.target.closest('[data-bank]');
+    if (bk) return editBank(state.people.find(x => x.id === bk.dataset.bank));
     const rn = e.target.closest('[data-rename]');
     if (rn) {
       const p = state.people.find(x => x.id === rn.dataset.rename);
@@ -861,6 +868,62 @@
       save(T('log.removed', { name: p.name }));
     }
   });
+
+  /** Full name + IBAN form; saves (and syncs) only when something changed. */
+  function editBank(p) {
+    const dlg = $('bankDlg');
+    $('bTitle').textContent = T('bank.title', { name: p.name });
+    $('bName').value = p.fullName || '';
+    $('bIban').value = p.iban ? H.formatIban(p.iban) : '';
+    $('bError').textContent = '';
+    dlg.dataset.person = p.id;
+    dlg.returnValue = '';
+    dlg.showModal();
+  }
+
+  $('bankForm').addEventListener('submit', e => {
+    if (e.submitter && e.submitter.value !== 'ok') return;
+    const p = state.people.find(x => x.id === $('bankDlg').dataset.person);
+    e.preventDefault();
+    if (!p) return $('bankDlg').close();
+    const before = (p.fullName || '') + '|' + (p.iban || '');
+    const res = H.setPayInfo(state, p.id, $('bName').value, $('bIban').value);
+    if (res.error) return ($('bError').textContent = res.error);
+    $('bankDlg').close();
+    if ((p.fullName || '') + '|' + (p.iban || '') !== before) save(T('log.bank', { name: p.name }));
+  });
+
+  /** "Send the money to" box: full name and IBAN of the person who gets paid back. */
+  function payTo(personId) {
+    const p = state.people.find(x => x.id === personId);
+    if (!p) return '';
+    if (!p.iban) return `<div class="pay-to none">${T('pay.noIban', { name: esc(p.name) })}</div>`;
+    const name = p.fullName || p.name;
+    return `<div class="pay-to"><span class="pay-label">${T('pay.sendTo')}</span>
+      <b class="pay-val">${esc(name)}</b>
+      <button type="button" class="small" data-copy="${esc(name)}" data-copied="${T('pay.nameCopied')}">${T('pay.copyName')}</button>
+      <span class="pay-val iban">${esc(H.formatIban(p.iban))}</span>
+      <button type="button" class="small" data-copy="${esc(p.iban)}" data-copied="${T('pay.copied')}">${T('pay.copy')}</button></div>`;
+  }
+
+  // Copy an IBAN anywhere on the page; old WebViews without the clipboard API use a hidden text box.
+  document.addEventListener('click', async e => {
+    const b = e.target.closest('[data-copy]');
+    if (!b) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const text = b.dataset.copy;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (err) {
+      const box = Object.assign(document.createElement('textarea'), { value: text });
+      document.body.appendChild(box);
+      box.select();
+      document.execCommand('copy');
+      box.remove();
+    }
+    toast(b.dataset.copied);
+  }, true);
 
   let currencyTimer;
   $('sCurrency').addEventListener('input', e => {
